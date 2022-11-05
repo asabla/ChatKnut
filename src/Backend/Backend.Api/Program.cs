@@ -2,12 +2,16 @@ using ChatKnut.Backend.Api.GraphQL;
 using ChatKnut.Common.TwitchChat;
 using ChatKnut.Data.Chat;
 
+using HotChocolate.Types.Pagination;
+
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
-    => options.UseSqlite("Data Source=ChatKnut.db"));
+    => options.UseSqlite(builder
+        .Configuration
+        .GetConnectionString("SqliteConnectionString")));
 
 // Caching things
 builder.Services
@@ -27,7 +31,7 @@ builder.Services
         .InitializeOnStartup()
         .RegisterDbContext<ChatKnutDbContext>(DbContextKind.Pooled)
         .RegisterService<ChatService>()
-        .SetPagingOptions(new HotChocolate.Types.Pagination.PagingOptions
+        .SetPagingOptions(new PagingOptions
         {
             MaxPageSize = 200
         })

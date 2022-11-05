@@ -11,12 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ChatKnut.Common.TwitchChat;
 
-public interface IChatService
-{
-    public Task JoinChannelAsync(string channel);
-}
-
-public class ChatService : BackgroundService, IChatService
+public class ChatService : BackgroundService
 {
     private readonly ILogger<ChatService> _logger;
     private readonly IDbContextFactory<ChatKnutDbContext> _dbContextFactory;
@@ -63,7 +58,7 @@ public class ChatService : BackgroundService, IChatService
                     }
                     else
                     {
-                        _logger.LogInformation(
+                        _logger.LogDebug(
                             "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}",
                             msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
 
@@ -73,6 +68,7 @@ public class ChatService : BackgroundService, IChatService
                 else
                 {
                     _logger.LogInformation("Is not connected, trying to connect");
+
                     await ConnectToIrcAsync(cancellationToken);
                 }
             }
@@ -108,7 +104,7 @@ public class ChatService : BackgroundService, IChatService
         if (_memoryCache.TryGetValue($"user_{userName}", out object? value)
             && value is User cacheUser)
         {
-            _logger.LogInformation("Found user '{userName}' in cache", userName);
+            _logger.LogDebug("Found user '{userName}' in cache", userName);
             return cacheUser;
         }
         else
@@ -156,7 +152,7 @@ public class ChatService : BackgroundService, IChatService
         if (_memoryCache.TryGetValue($"channel_{channelName}", out object? value)
             && value is Channel cacheChannel)
         {
-            _logger.LogInformation("Found channel '{channelName}' in cache", channelName);
+            _logger.LogDebug("Found channel '{channelName}' in cache", channelName);
             return cacheChannel;
         }
         else
