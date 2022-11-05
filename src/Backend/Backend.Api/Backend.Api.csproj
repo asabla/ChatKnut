@@ -14,4 +14,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\Common.TwitchChat\Common.TwitchChat.csproj" />
+    <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
+  </ItemGroup>
+
 </Project>
