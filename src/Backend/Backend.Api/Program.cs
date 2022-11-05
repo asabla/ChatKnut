@@ -17,7 +17,7 @@ builder.Services
 
 // Background service setup
 builder.Services
-    .AddSingleton<IChatService, ChatService>();
+    .AddSingleton<ChatService>();
 builder.Services
     .AddHostedService(sp => sp.GetService<ChatService>());
 
