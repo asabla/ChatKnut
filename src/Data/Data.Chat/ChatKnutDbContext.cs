@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using ChatKnut.Data.Chat.Models;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace ChatKnut.Data.Chat;
 
