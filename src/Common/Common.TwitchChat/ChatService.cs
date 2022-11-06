@@ -28,8 +28,12 @@ public class ChatService : BackgroundService
         IDbContextFactory<ChatKnutDbContext> dbContextFactory,
         IMemoryCache memoryCache)
     {
-        _logger = logger;
-        _memoryCache = memoryCache;
+        _logger = logger ??
+            throw new ArgumentNullException(nameof(logger));
+
+        _memoryCache = memoryCache ??
+            throw new ArgumentNullException(nameof(memoryCache));
+
         _dbContextFactory = dbContextFactory ??
             throw new ArgumentNullException(nameof(dbContextFactory));
 
@@ -62,7 +66,7 @@ public class ChatService : BackgroundService
                             "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}",
                             msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
 
-                        await InsertMessage(msg, cancellationToken);
+                        await InsertMessage(msg);
                     }
                 }
                 else
@@ -98,8 +102,7 @@ public class ChatService : BackgroundService
 
     private async Task<User> GetOrCreateUser(
         string userName,
-        ChatKnutDbContext context,
-        CancellationToken token)
+        ChatKnutDbContext context)
     {
         if (_memoryCache.TryGetValue($"user_{userName}", out object? value)
             && value is User cacheUser)
@@ -120,9 +123,9 @@ public class ChatService : BackgroundService
                     Id = Guid.NewGuid(),
                     UserName = userName,
                     CreatedUtc = DateTime.UtcNow
-                }, token);
+                });
 
-                await context.SaveChangesAsync(cancellationToken: token);
+                await context.SaveChangesAsync();
 
                 resultUser = result.Entity;
             }
@@ -132,7 +135,7 @@ public class ChatService : BackgroundService
 
                 resultUser = await context.Users
                     .Where(x => x.UserName.Equals(userName))
-                    .FirstOrDefaultAsync(cancellationToken: token) ?? null!;
+                    .FirstOrDefaultAsync() ?? null!;
             }
 
             _memoryCache.Set($"user_{userName}", resultUser, new MemoryCacheEntryOptions
@@ -146,8 +149,7 @@ public class ChatService : BackgroundService
 
     private async Task<Channel> GetOrCreateChannel(
         string channelName,
-        ChatKnutDbContext context,
-        CancellationToken token)
+        ChatKnutDbContext context)
     {
         if (_memoryCache.TryGetValue($"channel_{channelName}", out object? value)
             && value is Channel cacheChannel)
@@ -168,9 +170,9 @@ public class ChatService : BackgroundService
                     Id = Guid.NewGuid(),
                     ChannelName = channelName,
                     CreatedUtc = DateTime.UtcNow
-                }, cancellationToken: token);
+                });
 
-                await context.SaveChangesAsync(cancellationToken: token);
+                await context.SaveChangesAsync();
 
                 resultChannel = result.Entity;
             }
@@ -180,7 +182,7 @@ public class ChatService : BackgroundService
 
                 resultChannel = await context.Channels
                     .Where(x => x.ChannelName.Equals(channelName))
-                    .FirstOrDefaultAsync(cancellationToken: token) ?? null!;
+                    .FirstOrDefaultAsync() ?? null!;
             }
 
             _memoryCache.Set($"channel_{channelName}", resultChannel, new MemoryCacheEntryOptions
@@ -192,9 +194,7 @@ public class ChatService : BackgroundService
         }
     }
 
-    private async Task InsertMessage(
-        RawIrcMessage msg,
-        CancellationToken cancellationToken)
+    private async Task InsertMessage(RawIrcMessage msg)
     {
         if (string.IsNullOrWhiteSpace(msg.Channel)
             || string.IsNullOrWhiteSpace(msg.Sender)
@@ -216,14 +216,14 @@ public class ChatService : BackgroundService
         await using ChatKnutDbContext context
             = _dbContextFactory.CreateDbContext();
 
-        var chatUser = await GetOrCreateUser(msg.Sender, context, cancellationToken);
+        var chatUser = await GetOrCreateUser(msg.Sender, context);
         if (chatUser is null)
         {
             _logger.LogWarning("Unable to GetOrCreateUser '{userName}'", msg.Sender);
             return;
         }
 
-        var chatChannel = await GetOrCreateChannel(msg.Channel, context, cancellationToken);
+        var chatChannel = await GetOrCreateChannel(msg.Channel, context);
         if (chatChannel is null)
         {
             _logger.LogWarning("Unable to GetOrCreateChannel '{channelName}'", msg.Channel);
@@ -241,9 +241,9 @@ public class ChatService : BackgroundService
             Message = msg.Message,
             UserId = userId,
             ChannelId = channelId ?? Guid.Empty
-        }, cancellationToken);
+        });
 
-        _ = await context.SaveChangesAsync(cancellationToken);
+        _ = await context.SaveChangesAsync();
     }
 
     private async Task ConnectToIrcAsync(CancellationToken token)
