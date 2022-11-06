@@ -20,6 +20,9 @@ mono_crash.*
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Build results
 [Dd]ebug/
