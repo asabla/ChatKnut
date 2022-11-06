@@ -43,7 +43,7 @@ public class ChatService : BackgroundService
     {
         _logger.LogInformation($"Starting {nameof(ChatService)}");
 
-        while(!cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
@@ -72,7 +72,7 @@ public class ChatService : BackgroundService
                     await ConnectToIrcAsync(cancellationToken);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Twitch listener crashed");
 
