@@ -1,0 +1,6 @@
+mutation joinChannelMutation {
+  joinChannel(channel: "#<channel_name_here>") {
+    channel
+    joined
+  }
+}

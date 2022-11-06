@@ -1,0 +1,50 @@
+query getChannelsQuery {
+  channels {
+    totalCount
+    items {
+      ...channelsFragment
+    }
+  }
+}
+
+query getChannelsWithFilterQuery {
+  channels(take: 10, where: {
+    channelName: { startsWith: "<channel_name_here>" }
+  }) {
+    totalCount
+    items {
+      ...channelsWithMessagesFragment
+    }
+  }
+}
+
+fragment channelsFragment on Channel {
+  id
+  channelName
+  createdUtc
+}
+
+fragment channelsWithMessagesFragment on Channel {
+  id
+  channelName
+  createdUtc
+  messages {
+    ...messageFragment
+  }
+}
+
+fragment messageFragment on ChatMessage {
+  id
+  channelName
+  message
+  createdUtc
+  user {
+    ...userFragment
+  }
+}
+
+fragment userFragment on User {
+  id
+  userName
+  createdUtc
+}
