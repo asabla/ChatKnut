@@ -10,8 +10,8 @@ public record JoinedChannel(string Channel)
 public class Mutation
 {
     public async Task<JoinedChannel> JoinChannel(
-    ChatService service,
-    string channel)
+        ChatService service,
+        string channel)
     {
         await service.JoinChannelAsync(channel.ToLowerInvariant());
 
