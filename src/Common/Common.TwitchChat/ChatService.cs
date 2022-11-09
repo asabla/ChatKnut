@@ -4,6 +4,8 @@ using ChatKnut.Common.TwitchChat.Models;
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Models;
 
+using HotChocolate.Subscriptions;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
@@ -16,6 +18,7 @@ public class ChatService : BackgroundService
     private readonly ILogger<ChatService> _logger;
     private readonly IDbContextFactory<ChatKnutDbContext> _dbContextFactory;
     private readonly IMemoryCache _memoryCache;
+    private readonly ITopicEventSender _eventSender;
 
     private TcpClient _tcpClient;
     private readonly string _ircAccountname;
@@ -26,7 +29,8 @@ public class ChatService : BackgroundService
     public ChatService(
         ILogger<ChatService> logger,
         IDbContextFactory<ChatKnutDbContext> dbContextFactory,
-        IMemoryCache memoryCache)
+        IMemoryCache memoryCache,
+        ITopicEventSender eventSender)
     {
         _logger = logger ??
             throw new ArgumentNullException(nameof(logger));
@@ -36,6 +40,9 @@ public class ChatService : BackgroundService
 
         _dbContextFactory = dbContextFactory ??
             throw new ArgumentNullException(nameof(dbContextFactory));
+
+        _eventSender = eventSender ??
+            throw new ArgumentNullException(nameof(eventSender));
 
         _tcpClient = new TcpClient();
 
@@ -233,7 +240,7 @@ public class ChatService : BackgroundService
         Guid userId = chatUser.Id;
         Guid? channelId = chatChannel.Id;
 
-        _ = await context.ChatMessages.AddAsync(new()
+        var dbMessage = await context.ChatMessages.AddAsync(new()
         {
             Id = Guid.NewGuid(),
             ChannelName = msg.Channel,
@@ -244,6 +251,20 @@ public class ChatService : BackgroundService
         });
 
         _ = await context.SaveChangesAsync();
+
+        // Manual mapping is needed for avoiding null values for
+        // user and channel entities
+        await _eventSender.SendAsync(msg.Channel, new ChatMessage
+        {
+            Id = dbMessage.Entity.Id,
+            ChannelName = dbMessage.Entity.ChannelName,
+            Message = dbMessage.Entity.Message,
+            CreatedUtc = dbMessage.Entity.CreatedUtc,
+            UserId = chatUser.Id,
+            User = chatUser,
+            ChannelId = chatChannel.Id,
+            Channel = chatChannel
+        });
     }
 
     private async Task ConnectToIrcAsync(CancellationToken token)
@@ -263,6 +284,7 @@ public class ChatService : BackgroundService
             = _dbContextFactory.CreateDbContext();
 
         var channels = await context.Channels
+            .Where(x => x.AutoJoin)
             .Select(x => x.ChannelName.ToLowerInvariant())
             .ToListAsync(cancellationToken: token) ?? new List<string>();
 
