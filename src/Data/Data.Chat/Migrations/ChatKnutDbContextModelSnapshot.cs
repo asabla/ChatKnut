@@ -23,6 +23,9 @@ namespace Data.Chat.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("AutoJoin")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ChannelName")
                         .IsRequired()
                         .HasColumnType("TEXT");

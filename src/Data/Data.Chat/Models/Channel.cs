@@ -11,6 +11,8 @@ public class Channel
 
     public DateTime CreatedUtc { get; set; }
 
+    public bool AutoJoin { get; set; } = false;
+
     public ICollection<ChatMessage> Messages { get; set; }
         = new List<ChatMessage>();
 }

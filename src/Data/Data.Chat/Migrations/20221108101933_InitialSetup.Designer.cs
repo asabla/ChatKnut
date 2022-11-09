@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Data.Chat.Migrations
 {
     [DbContext(typeof(ChatKnutDbContext))]
-    [Migration("20221105192525_InitialSetup")]
+    [Migration("20221108101933_InitialSetup")]
     partial class InitialSetup
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,9 @@ namespace Data.Chat.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("AutoJoin")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ChannelName")
                         .IsRequired()
