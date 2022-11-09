@@ -16,8 +16,6 @@ builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
 // Caching things
 builder.Services
     .AddMemoryCache();
-builder.Services
-    .AddInMemorySubscriptions();
 
 // Background service setup
 builder.Services
@@ -29,6 +27,11 @@ builder.Services
 builder.Services
     .AddGraphQLServer()
         .InitializeOnStartup()
+        .ModifyRequestOptions(opt =>
+        {
+            opt.Complexity.Enable = true;
+            opt.Complexity.MaximumAllowed = 1500;
+        })
         .RegisterDbContext<ChatKnutDbContext>(DbContextKind.Pooled)
         .RegisterService<ChatService>()
         .SetPagingOptions(new PagingOptions
@@ -40,6 +43,8 @@ builder.Services
     .AddProjections()
     .AddQueryType<Query>()
     .AddMutationType<Mutation>()
+    .AddSubscriptionType<Subscription>()
+        .AddInMemorySubscriptions()
     .AddInMemoryQueryStorage()
     .UseAutomaticPersistedQueryPipeline();
 
