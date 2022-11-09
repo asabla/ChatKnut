@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
     => options.UseSqlite(builder
         .Configuration
-        .GetConnectionString("SqliteConnectionString")));
+        .GetConnectionString("SqliteConnectionString")!));
 
 // Caching things
 builder.Services
@@ -21,7 +21,7 @@ builder.Services
 builder.Services
     .AddSingleton<ChatService>();
 builder.Services
-    .AddHostedService(sp => sp.GetService<ChatService>());
+    .AddHostedService(sp => sp.GetService<ChatService>()!);
 
 // GraphQL setup
 builder.Services
