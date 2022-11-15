@@ -223,6 +223,9 @@ public class ChatService : BackgroundService
         await using ChatKnutDbContext context
             = _dbContextFactory.CreateDbContext();
 
+        using var transaction = await context
+            .Database.BeginTransactionAsync();
+
         var chatUser = await GetOrCreateUser(msg.Sender, context);
         if (chatUser is null)
         {
@@ -265,6 +268,8 @@ public class ChatService : BackgroundService
             ChannelId = chatChannel.Id,
             Channel = chatChannel
         });
+
+        await transaction.CommitAsync();
     }
 
     private async Task ConnectToIrcAsync(CancellationToken token)
