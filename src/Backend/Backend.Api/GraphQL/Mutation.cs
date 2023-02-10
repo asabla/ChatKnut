@@ -21,7 +21,7 @@ public class Mutation
     }
 
     public async Task<Channel> ChangeAutoJoinChannel(
-        [ScopedService] ChatKnutDbContext context,
+        ChatKnutDbContext context,
         string channelName,
         bool autoJoin)
     {
@@ -43,7 +43,7 @@ public class Mutation
     }
 
     public async Task<IEnumerable<JoinedChannel>> JoinAllChannels(
-        [ScopedService] ChatKnutDbContext context,
+        ChatKnutDbContext context,
         ChatService service)
     {
         var result = new List<JoinedChannel>();

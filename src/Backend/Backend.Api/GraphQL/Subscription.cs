@@ -6,7 +6,7 @@ public class Subscription
 {
     [Subscribe]
     public ChatMessage ChatMessageReceived(
-        [Topic] string channelName,
+        // [Topic] string channelName,
         [EventMessage] ChatMessage message)
         => message;
 }

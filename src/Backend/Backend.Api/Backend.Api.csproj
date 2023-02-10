@@ -8,20 +8,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HotChocolate.AspNetCore" Version="12.15.1" />
-    <PackageReference Include="HotChocolate.Data.EntityFramework" Version="12.15.1" />
-    <PackageReference Include="HotChocolate.PersistedQueries.InMemory" Version="12.15.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.10">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
-  </ItemGroup>
+      <PackageReference Include="HotChocolate.AspNetCore" Version="13.0.2" />
+      <PackageReference Include="HotChocolate.Caching" Version="13.0.2" />
+      <PackageReference Include="HotChocolate.Data.EntityFramework" Version="13.0.2" />
+      <PackageReference Include="HotChocolate.PersistedQueries.InMemory" Version="13.0.2" />
+      <PackageReference Include="HotChocolate.Subscriptions" Version="13.0.2" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.2">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.2" />
+      <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.0" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Common\Common.TwitchChat\Common.TwitchChat.csproj" />
-    <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\..\Common\Common.TwitchChat\Common.TwitchChat.csproj" />
+      <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
+    </ItemGroup>
 
-</Project>
+  </Project>
