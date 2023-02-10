@@ -61,7 +61,7 @@ public class ChatService : BackgroundService
                 if (_tcpClient.Connected)
                 {
                     var msg = await ReadMessageAsync();
-                    if (msg is null || msg.IsEmpty) continue;
+                    if (msg?.IsEmpty != false) continue;
 
                     if (msg.IsPing)
                     {
@@ -329,7 +329,7 @@ public class ChatService : BackgroundService
     {
         var message = await _inputStream.ReadLineAsync();
 
-        if (message is null || message.StartsWith(":tmi.twitch.tv"))
+        if (message?.StartsWith(":tmi.twitch.tv") != false)
             return null!;
 
         try

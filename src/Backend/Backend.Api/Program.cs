@@ -8,10 +8,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Is required now for ChatService, might need to be refactored to support
+// an ordinary pooled db context instead
 builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
     => options.UseSqlite(builder
         .Configuration
-        .GetConnectionString("SqliteConnectionString")!));
+        .GetConnectionString("SqliteConnectionString")));
 
 // Caching things
 builder.Services
@@ -36,7 +38,8 @@ builder.Services
         .RegisterService<ChatService>()
         .SetPagingOptions(new PagingOptions
         {
-            MaxPageSize = 200
+            MaxPageSize = 200,
+            IncludeTotalCount = true
         })
     .AddFiltering()
     .AddSorting()
@@ -44,7 +47,8 @@ builder.Services
     .AddQueryType<Query>()
     .AddMutationType<Mutation>()
     .AddSubscriptionType<Subscription>()
-        .AddInMemorySubscriptions()
+    .AddInMemorySubscriptions()
+    .AddCacheControl()
     .AddInMemoryQueryStorage()
     .UseAutomaticPersistedQueryPipeline();
 

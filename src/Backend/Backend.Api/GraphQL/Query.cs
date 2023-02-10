@@ -5,24 +5,24 @@ namespace ChatKnut.Backend.Api.GraphQL;
 
 public class Query
 {
-    [UseOffsetPaging(IncludeTotalCount = true)]
+    [UseOffsetPaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
-    public IQueryable<User> GetUsers([ScopedService] ChatKnutDbContext context)
+    public IQueryable<User> GetUsers(ChatKnutDbContext context)
         => context.Users;
 
-    [UseOffsetPaging(IncludeTotalCount = true)]
+    [UseOffsetPaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
-    public IQueryable<ChatMessage> GetMessages([ScopedService] ChatKnutDbContext context)
+    public IQueryable<ChatMessage> GetMessages(ChatKnutDbContext context)
         => context.ChatMessages;
 
-    [UseOffsetPaging(IncludeTotalCount = true)]
+    [UseOffsetPaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
-    public IQueryable<Channel> GetChannels([ScopedService] ChatKnutDbContext context)
+    public IQueryable<Channel> GetChannels(ChatKnutDbContext context)
         => context.Channels;
 }
