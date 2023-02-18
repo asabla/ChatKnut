@@ -1,13 +1,7 @@
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 
 using ChatKnut.Common.TwitchChat.Models;
-using ChatKnut.Data.Chat;
-using ChatKnut.Data.Chat.Models;
 
-using HotChocolate.Subscriptions;
-
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -16,52 +10,52 @@ namespace ChatKnut.Common.TwitchChat;
 public class ChatService : BackgroundService
 {
     private readonly ILogger<ChatService> _logger;
-    private readonly IDbContextFactory<ChatKnutDbContext> _dbContextFactory;
-    private readonly IMemoryCache _memoryCache;
-    private readonly ITopicEventSender _eventSender;
 
     private TcpClient _tcpClient;
-    private readonly string _ircAccountname;
+    private readonly string _ircAccountName;
 
     private StreamWriter _outputStream = null!;
     private StreamReader _inputStream = null!;
 
-    public ChatService(
-        ILogger<ChatService> logger,
-        IDbContextFactory<ChatKnutDbContext> dbContextFactory,
-        IMemoryCache memoryCache,
-        ITopicEventSender eventSender)
+    private const string IrcHostString = "irc.chat.twitch.tv";
+    private const int IrcHostPort = 6667;
+
+    public event EventHandler<ChatMessageEventArgs> MessageReceivedEvent = null!;
+
+    public ChatService(ILogger<ChatService> logger)
     {
         _logger = logger ??
             throw new ArgumentNullException(nameof(logger));
 
-        _memoryCache = memoryCache ??
-            throw new ArgumentNullException(nameof(memoryCache));
-
-        _dbContextFactory = dbContextFactory ??
-            throw new ArgumentNullException(nameof(dbContextFactory));
-
-        _eventSender = eventSender ??
-            throw new ArgumentNullException(nameof(eventSender));
-
         _tcpClient = new TcpClient();
 
         var rnd = new Random();
-        _ircAccountname = $"justinfan{rnd.Next(100, 999)}";
+        _ircAccountName = $"justinfan{rnd.Next(100, 999)}";
     }
 
-    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
+    public ChatService(ILogger<ChatService> logger, string ircAccountName)
+        : this(logger)
     {
-        _logger.LogInformation($"Starting {nameof(ChatService)}");
+        _ircAccountName = ircAccountName;
+    }
 
-        while (!cancellationToken.IsCancellationRequested)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation(
+            "Starting {serviceName} with nick '{ircAccountName}'",
+            nameof(ChatService),
+            _ircAccountName);
+
+        await ConnectToIrcAsync(stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 if (_tcpClient.Connected)
                 {
                     var msg = await ReadMessageAsync();
-                    if (msg is null || msg.IsEmpty) continue;
+                    if (msg?.IsEmpty != false) continue;
 
                     if (msg.IsPing)
                     {
@@ -73,280 +67,124 @@ public class ChatService : BackgroundService
                             "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}",
                             msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
 
-                        await InsertMessage(msg);
+                        // Raise an event when if message was received
+                        OnMessageReceivedEvent(new ChatMessageEventArgs(msg));
                     }
                 }
                 else
                 {
-                    _logger.LogInformation("Is not connected, trying to connect");
+                    _logger.LogWarning("Is not connected, trying to reconnect");
 
-                    await ConnectToIrcAsync(cancellationToken);
+                    await ConnectToIrcAsync(stoppingToken);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Twitch listener crashed");
+                _logger.LogError(ex, "Twitch listener stopped unexpectedly");
 
                 _logger.LogDebug("Waiting 5s until trying to re-connect");
-                await Task.Delay(5000, cancellationToken);
+                await Task.Delay(5000, stoppingToken);
             }
         }
 
         await Disconnect();
     }
 
+    protected virtual void OnMessageReceivedEvent(ChatMessageEventArgs e)
+    {
+        EventHandler<ChatMessageEventArgs> raiseEvent = MessageReceivedEvent;
+
+        // Event will be null if there aren't any subscribers
+        if (raiseEvent is not null)
+            raiseEvent(this, e);
+    }
+
     public async Task JoinChannelAsync(string channel)
     {
         if (!channel.StartsWith("#"))
-            throw new ArgumentException("Channel must start with #", nameof(channel));
+            throw new ArgumentException("Channel must start with a #", nameof(channel));
 
-        _logger.LogInformation("Joinging channel '{channel}'", channel);
+        _logger.LogInformation("Joining channel '{channel}'", channel);
 
-        await SendStringMessageAsync($"JOIN {channel}");
+        await SendMessageAsync($"JOIN {channel}");
     }
 
-    #region Private methods
-
-    private async Task<User> GetOrCreateUser(
-        string userName,
-        ChatKnutDbContext context)
+    private async Task SendMessageAsync(string message)
     {
-        if (_memoryCache.TryGetValue($"user_{userName}", out object? value)
-            && value is User cacheUser)
-        {
-            _logger.LogDebug("Found user '{userName}' in cache", userName);
-            return cacheUser;
-        }
-        else
-        {
-            _logger.LogDebug("User '{userName}' was not found in cache", userName);
-
-            User resultUser = null!;
-            if (!context.Users.Any(x => x.UserName.Equals(userName)))
-            {
-                _logger.LogDebug("User '{userName}' was not found in Db, creating user", userName);
-                var result = await context.Users.AddAsync(new()
-                {
-                    Id = Guid.NewGuid(),
-                    UserName = userName,
-                    CreatedUtc = DateTime.UtcNow
-                });
-
-                await context.SaveChangesAsync();
-
-                resultUser = result.Entity;
-            }
-            else
-            {
-                _logger.LogDebug("User '{userName}' found in Db", userName);
-
-                resultUser = await context.Users
-                    .Where(x => x.UserName.Equals(userName))
-                    .FirstOrDefaultAsync() ?? null!;
-            }
-
-            _memoryCache.Set($"user_{userName}", resultUser, new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
-            });
-
-            return resultUser;
-        }
+        await _outputStream.WriteLineAsync(message);
+        await _outputStream.FlushAsync();
     }
 
-    private async Task<Channel> GetOrCreateChannel(
-        string channelName,
-        ChatKnutDbContext context)
+    private async Task ConnectToIrcAsync(CancellationToken cancellationToken)
     {
-        if (_memoryCache.TryGetValue($"channel_{channelName}", out object? value)
-            && value is Channel cacheChannel)
-        {
-            _logger.LogDebug("Found channel '{channelName}' in cache", channelName);
-            return cacheChannel;
-        }
-        else
-        {
-            _logger.LogDebug("Channel '{channelName}' was not found in cache", channelName);
-
-            Channel resultChannel = null!;
-            if (!context.Channels.Any(x => x.ChannelName.Equals(channelName)))
-            {
-                _logger.LogDebug("Channel '{channelName}' was not found in Db, creating channel", channelName);
-                var result = await context.Channels.AddAsync(new()
-                {
-                    Id = Guid.NewGuid(),
-                    ChannelName = channelName,
-                    CreatedUtc = DateTime.UtcNow
-                });
-
-                await context.SaveChangesAsync();
-
-                resultChannel = result.Entity;
-            }
-            else
-            {
-                _logger.LogDebug("Channel '{channelName}' found in Db", channelName);
-
-                resultChannel = await context.Channels
-                    .Where(x => x.ChannelName.Equals(channelName))
-                    .FirstOrDefaultAsync() ?? null!;
-            }
-
-            _memoryCache.Set($"channel_{channelName}", resultChannel, new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(3)
-            });
-
-            return resultChannel;
-        }
-    }
-
-    private async Task InsertMessage(RawIrcMessage msg)
-    {
-        if (string.IsNullOrWhiteSpace(msg.Channel)
-            || string.IsNullOrWhiteSpace(msg.Sender)
-            || string.IsNullOrWhiteSpace(msg.Message))
-        {
-            _logger.LogWarning("Message does not contain enough information");
-            return;
-        }
-
-        if (msg.Sender.StartsWith("justinfan"))
-        {
-            _logger.LogInformation(
-                "System accounts ('{userName}') will not be logged",
-                msg.Sender);
-
-            return;
-        }
-
-        await using ChatKnutDbContext context
-            = _dbContextFactory.CreateDbContext();
-
-        using var transaction = await context
-            .Database.BeginTransactionAsync();
-
-        var chatUser = await GetOrCreateUser(msg.Sender, context);
-        if (chatUser is null)
-        {
-            _logger.LogWarning("Unable to GetOrCreateUser '{userName}'", msg.Sender);
-            return;
-        }
-
-        var chatChannel = await GetOrCreateChannel(msg.Channel, context);
-        if (chatChannel is null)
-        {
-            _logger.LogWarning("Unable to GetOrCreateChannel '{channelName}'", msg.Channel);
-            return;
-        }
-
-        Guid userId = chatUser.Id;
-        Guid? channelId = chatChannel.Id;
-
-        var dbMessage = await context.ChatMessages.AddAsync(new()
-        {
-            Id = Guid.NewGuid(),
-            ChannelName = msg.Channel,
-            CreatedUtc = DateTime.UtcNow,
-            Message = msg.Message,
-            UserId = userId,
-            ChannelId = channelId ?? Guid.Empty
-        });
-
-        _ = await context.SaveChangesAsync();
-
-        // Manual mapping is needed for avoiding null values for
-        // user and channel entities
-        await _eventSender.SendAsync(msg.Channel, new ChatMessage
-        {
-            Id = dbMessage.Entity.Id,
-            ChannelName = dbMessage.Entity.ChannelName,
-            Message = dbMessage.Entity.Message,
-            CreatedUtc = dbMessage.Entity.CreatedUtc,
-            UserId = chatUser.Id,
-            User = chatUser,
-            ChannelId = chatChannel.Id,
-            Channel = chatChannel
-        });
-
-        await transaction.CommitAsync();
-    }
-
-    private async Task ConnectToIrcAsync(CancellationToken token)
-    {
-        _tcpClient.Dispose();
+        // Make sure we don't have any dangling connection from earlier
+        await Disconnect();
 
         _tcpClient = new TcpClient();
-        await _tcpClient.ConnectAsync("irc.chat.twitch.tv", 6667);
+        await _tcpClient.ConnectAsync(
+            IrcHostString,
+            IrcHostPort,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "Connected to {ircHostingString}:{ircHostPort}",
+            IrcHostString,
+            IrcHostPort);
 
         _outputStream = new StreamWriter(_tcpClient.GetStream());
         _inputStream = new StreamReader(_tcpClient.GetStream());
 
-        await SendStringMessageAsync($"NICK {_ircAccountname}");
-        await SendStringMessageAsync("PASS SCHMOOPIIE");
-
-        await using ChatKnutDbContext context
-            = _dbContextFactory.CreateDbContext();
-
-        var channels = await context.Channels
-            .Where(x => x.AutoJoin)
-            .Select(x => x.ChannelName.ToLowerInvariant())
-            .ToListAsync(cancellationToken: token) ?? new List<string>();
+        // Handshake with server
+        await SendMessageAsync($"NICK {_ircAccountName}");
+        await SendMessageAsync("PASS SCHMOOPIIE");
 
         _logger.LogInformation(
-            "Found {channels.Count} number of channels to join",
-            channels.Count);
+            "Sent handshake with nick: '{ircAccountName}'",
+            _ircAccountName);
+    }
 
-        var options = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = 5
-        };
+    private async Task SendPongResponseAsync()
+    {
+        await SendMessageAsync("PONG :tmi.twitch.tv");
 
-        foreach (var chan in channels)
+        _logger.LogInformation("Sent PONG response");
+    }
+
+    private async Task<RawircMessage> ReadMessageAsync()
+    {
+        var message = await _inputStream.ReadLineAsync();
+
+        if (message?.StartsWith(":tmi.twitch.tv") != false)
+            return null!;
+
+        try
         {
-            await JoinChannelAsync($"#{chan}");
-            await Task.Delay(100, token);
+            return new RawircMessage(message ?? string.Empty);
+        }
+        catch
+        {
+            _logger.LogDebug(
+                "Unable to parse message: {message}",
+                message);
+
+            return null!;
         }
     }
 
     private Task Disconnect()
     {
-        _inputStream.Close();
-        _outputStream.Close();
-        _tcpClient.Close();
+        _inputStream?.Close();
+        _outputStream?.Close();
+        _tcpClient?.Close();
+
+        _inputStream = null!;
+        _outputStream = null!;
+        _tcpClient = null!;
+
+        _logger.LogInformation(
+            "Disconnected as user {ircAccountName}",
+            _ircAccountName);
 
         return Task.CompletedTask;
     }
-
-    private async Task SendPongResponseAsync()
-    {
-        _logger.LogInformation("Sending PONG message");
-
-        await SendStringMessageAsync("PONG :tmi.twitch.tv");
-    }
-
-    private async Task<RawIrcMessage> ReadMessageAsync()
-    {
-        var message = await _inputStream.ReadLineAsync();
-
-        if (message is null || message.StartsWith(":tmi.twitch.tv"))
-            return null!;
-
-        try
-        {
-            return new RawIrcMessage(message ?? string.Empty);
-        }
-        catch
-        {
-            return null!;
-        }
-    }
-
-    private async Task SendStringMessageAsync(string message)
-    {
-        await _outputStream.WriteAsync($"{message}\r\n");
-        await _outputStream.FlushAsync();
-    }
-
-    #endregion
 }
