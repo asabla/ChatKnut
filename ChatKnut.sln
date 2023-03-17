@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{957603DD-A9A1-434A-A162-1DA268A2CDF7}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{8FA2B023-6572-4A77-A88E-09F7AAA53562}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{2759B06E-34AE-49A5-AEF1-5C1F8C627B61}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{2C19805A-613B-48B7-A036-5436945FC9D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.TwitchChat", "src\Common\Common.TwitchChat\Common.TwitchChat.csproj", "{2A964AB5-5C4A-4F24-A144-F86975AC3B84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.TwitchChat", "src\Common\Common.TwitchChat\Common.TwitchChat.csproj", "{DE1EA802-0FDF-4F5F-88CF-C22A2347CBC3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,13 +18,13 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{2A964AB5-5C4A-4F24-A144-F86975AC3B84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2A964AB5-5C4A-4F24-A144-F86975AC3B84}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2A964AB5-5C4A-4F24-A144-F86975AC3B84}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2A964AB5-5C4A-4F24-A144-F86975AC3B84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DE1EA802-0FDF-4F5F-88CF-C22A2347CBC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DE1EA802-0FDF-4F5F-88CF-C22A2347CBC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DE1EA802-0FDF-4F5F-88CF-C22A2347CBC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DE1EA802-0FDF-4F5F-88CF-C22A2347CBC3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{2759B06E-34AE-49A5-AEF1-5C1F8C627B61} = {957603DD-A9A1-434A-A162-1DA268A2CDF7}
-		{2A964AB5-5C4A-4F24-A144-F86975AC3B84} = {2759B06E-34AE-49A5-AEF1-5C1F8C627B61}
+		{2C19805A-613B-48B7-A036-5436945FC9D7} = {8FA2B023-6572-4A77-A88E-09F7AAA53562}
+		{DE1EA802-0FDF-4F5F-88CF-C22A2347CBC3} = {2C19805A-613B-48B7-A036-5436945FC9D7}
 	EndGlobalSection
 EndGlobal
