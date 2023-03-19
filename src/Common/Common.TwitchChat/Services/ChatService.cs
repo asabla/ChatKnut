@@ -18,7 +18,7 @@ internal class ChatService : IChatService
     private readonly ILogger<ChatService> _logger;
     private readonly string _ircAccountName;
 
-    private TcpClient _tcpClient = default!;
+    private readonly TcpClient _tcpClient = default!;
     private StreamReader _inputStream = null!;
     private StreamWriter _outputStream = null!;
 

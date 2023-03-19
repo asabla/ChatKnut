@@ -1,6 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Data.ChatKnutDB.ModelsConfigurations;
 using Data.StoreObjects.Models;
-using Data.ChatKnutDB.ModelsConfigurations;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace Data.ChatKnutDB;
 
