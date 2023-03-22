@@ -1,4 +1,7 @@
-﻿using Backend.Api.GraphQL;
+﻿using Data.ChatKnutDB.Repositories;
+
+using HotChocolate.Execution.Configuration;
+using HotChocolate.Types.Pagination;
 
 namespace Backend.Api.Extensions;
 
@@ -15,12 +18,27 @@ internal static class GraphQLExtensions
                     opt.Complexity.Enable = true;
                     opt.Complexity.MaximumAllowed = 1500;
                 })
-                .SetPagingOptions(new HotChocolate.Types.Pagination.PagingOptions
+                .SetPagingOptions(new PagingOptions
                 {
                     MaxPageSize = 100,
                     IncludeTotalCount = true,
                 })
-            .AddQueryType<Query>();
+            .AddTypes()                 // Generated with ModulesInfo.cs
+            .AddFiltering()
+            .AddProjections()
+            .AddSorting()
+            .RegisterRepositories();    // Extension method
+
+        return builder;
+    }
+
+    private static IRequestExecutorBuilder RegisterRepositories(
+        this IRequestExecutorBuilder builder)
+    {
+        builder
+            .RegisterService<ChannelRepository>(ServiceKind.Resolver)
+            .RegisterService<ChatMessageRepository>(ServiceKind.Resolver)
+            .RegisterService<UserRepository>(ServiceKind.Resolver);
 
         return builder;
     }

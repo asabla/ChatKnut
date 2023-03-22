@@ -37,7 +37,7 @@ internal class ChatService : IChatService
     {
         EventHandler<IrcEventArgs> raiseEvent = MessageReceivedEvent;
 
-        // If there are no subscribers, event will be null
+        // If there are no subscribers event will be null
         if (raiseEvent != null)
         {
             raiseEvent(this, eventArgs);
@@ -59,9 +59,13 @@ internal class ChatService : IChatService
                 }
 
                 var msg = await ReadMessageAsync();
-                if (msg?.IsEmpty is true) continue;
 
-                if (msg.IsPing)
+                // msg.IsEmpty will be true if it fails to parse text content
+                // of a received message
+                if (msg is null || msg.IsEmpty is true)
+                    continue;
+
+                if (msg.IsPing is true)
                 {
                     await SendPongResponseAsync();
                     continue;
