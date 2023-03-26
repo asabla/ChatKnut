@@ -35,13 +35,16 @@ internal class ChatService : IChatService
 
     protected virtual void OnMessageReceivedEvent(IrcEventArgs eventArgs)
     {
-        EventHandler<IrcEventArgs> raiseEvent = MessageReceivedEvent;
+        // Todo: Check if this is needed or not
+        // EventHandler<IrcEventArgs> raiseEvent = MessageReceivedEvent;
 
-        // If there are no subscribers event will be null
-        if (raiseEvent != null)
-        {
-            raiseEvent(this, eventArgs);
-        }
+        // // If there are no subscribers event will be null
+        // if (raiseEvent != null)
+        // {
+        //     raiseEvent(this, eventArgs);
+        // }
+
+        MessageReceivedEvent?.Invoke(this, eventArgs);
     }
 
     public async Task Connect(CancellationToken cancellationToken)
@@ -52,7 +55,7 @@ internal class ChatService : IChatService
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (_tcpClient.Connected is false)
+                if (!_tcpClient.Connected)
                 {
                     _logger.LogInformation("Is not connected, trying to connect");
                     await ConnectToIrcServerAsync();
@@ -62,10 +65,10 @@ internal class ChatService : IChatService
 
                 // msg.IsEmpty will be true if it fails to parse text content
                 // of a received message
-                if (msg is null || msg.IsEmpty is true)
+                if (msg?.IsEmpty != false)
                     continue;
 
-                if (msg.IsPing is true)
+                if (msg.IsPing)
                 {
                     await SendPongResponseAsync();
                     continue;

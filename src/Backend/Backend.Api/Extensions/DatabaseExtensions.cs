@@ -12,9 +12,11 @@ internal static class DatabaseExtensions
     {
         // Setup local development database with Sqlite
         if (builder.Environment.IsDevelopment())
+        {
             builder.Services
                 .AddDbContextPool<ChatKnutDBContext>(options =>
                     options.UseSqlite("Data Source=ChatKnut.db"));
+        }
 
         // Setup repositories as scoped services
         builder.RegisterRepositories();

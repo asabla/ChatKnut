@@ -7,6 +7,7 @@ internal class ApiSettingsValidator : AbstractValidator<ApiSettings>
     public ApiSettingsValidator()
     {
         // TODO: add rules for settings here
+        StringMustBeValidUrl("https://localhost");
     }
 
     private static bool StringMustBeValidUrl(string arg)

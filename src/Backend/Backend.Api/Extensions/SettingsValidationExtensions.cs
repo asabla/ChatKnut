@@ -50,8 +50,10 @@ internal class FluentValidationOptions<TOptions> : IValidateOptions<TOptions>
         var errors = new List<string>();
 
         foreach (var result in results.Errors)
+        {
             errors.Add($"Validation error: '{typeName}.{result.PropertyName}' " +
                 $"with errors: '{result.ErrorMessage}");
+        }
 
         return ValidateOptionsResult.Fail(errors);
     }
