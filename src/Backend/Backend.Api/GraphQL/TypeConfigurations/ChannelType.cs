@@ -13,6 +13,22 @@ public class ChannelType : ObjectType<Channel>
             """);
 
         descriptor
+            .Field(x => x.AutoJoin)
+            .Description("If channel should be auto joined by default");
+
+        descriptor
+            .Field(x => x.ChannelName)
+            .Description("Unique channel name for registered channel");
+
+        descriptor
+            .Field(x => x.CreatedUtc)
+            .Description("When channel was first seen and registered");
+
+        descriptor
+            .Field(x => x.Id)
+            .Description("Unique identifier (as GUID) for channels");
+
+        descriptor
             .Field(x => x.Messages)
             .UseOffsetPaging()
             .UseProjection()
