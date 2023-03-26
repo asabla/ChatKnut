@@ -1,12 +1,11 @@
-﻿using Data.ChatKnutDB.Repositories;
-using Data.StoreObjects.Models;
+﻿namespace Backend.Api.GraphQL;
 
-namespace Backend.Api.GraphQL;
-
+[QueryType]
+[GraphQLDescription("All supported queries")]
 public class Query
 {
     public Book GetBook() =>
-        new Book
+        new()
         {
             Title = "Some Book title",
             Author = new()
@@ -14,21 +13,6 @@ public class Query
                 Name = "Some Author Name"
             }
         };
-
-    public Task<IReadOnlyList<Channel>> GetChannels(
-        ChannelRepository channelRepository,
-        CancellationToken cancellationToken)
-        => channelRepository.GetChannelsAsync(cancellationToken);
-
-    public Task<IReadOnlyList<ChatMessage>> GetMessages(
-        ChatMessageRepository chatMessageRepository,
-        CancellationToken cancellationToken)
-        => chatMessageRepository.GetChatMessagesAsync(cancellationToken);
-
-    public Task<IReadOnlyList<User>> GetUsers(
-        UserRepository userRepository,
-        CancellationToken cancellationToken)
-        => userRepository.GetUsersAsync(cancellationToken);
 }
 
 public record Book
