@@ -19,22 +19,20 @@ internal static class DatabaseExtensions
         }
 
         // Setup repositories as scoped services
-        builder.RegisterRepositories();
+        builder
+            .RegisterRepository<ChannelRepository>()
+            .RegisterRepository<ChatMessageRepository>()
+            .RegisterRepository<UserRepository>();
 
         return builder;
     }
 
-    private static WebApplicationBuilder RegisterRepositories(
+    private static WebApplicationBuilder RegisterRepository<TRepo>(
         this WebApplicationBuilder builder)
+        where TRepo : class
     {
         builder.Services
-            .AddScoped<ChannelRepository>();
-
-        builder.Services
-            .AddScoped<ChatMessageRepository>();
-
-        builder.Services
-            .AddScoped<UserRepository>();
+            .AddScoped<TRepo>();
 
         return builder;
     }

@@ -16,8 +16,9 @@ public class ChatKnutDBContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ConfigureChannel();
-        modelBuilder.ConfigureChatMessage();
-        modelBuilder.ConfigureUser();
+        modelBuilder
+            .ConfigureChannel()
+            .ConfigureChatMessage()
+            .ConfigureUser();
     }
 }

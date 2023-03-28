@@ -6,7 +6,6 @@ namespace Backend.Api.GraphQL.Resolvers;
 [ExtendObjectType(nameof(Query))]
 public sealed class ChatMessageResolvers
 {
-
     [UseOffsetPaging]
     [UseProjection]
     [UseFiltering]
