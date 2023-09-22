@@ -54,6 +54,13 @@ public class ChatService : BackgroundService
     {
         _logger.LogInformation($"Starting {nameof(ChatService)}");
 
+        _logger.LogInformation("Make sure database has been created and have latest migrations");
+        await using ChatKnutDbContext context = _dbContextFactory.CreateDbContext();
+        if (!await context.Database.EnsureCreatedAsync())
+        {
+            await context.Database.MigrateAsync();
+        }
+
         while (!cancellationToken.IsCancellationRequested)
         {
             try
