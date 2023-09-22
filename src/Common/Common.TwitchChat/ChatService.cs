@@ -56,8 +56,10 @@ public class ChatService : BackgroundService
 
         _logger.LogInformation("Make sure database has been created and have latest migrations");
         await using ChatKnutDbContext context = _dbContextFactory.CreateDbContext();
-        if (!await context.Database.EnsureCreatedAsync())
+
+        if (await context.Database.EnsureCreatedAsync() is true)
         {
+            _logger.LogInformation("Applying migrations after creating database");
             await context.Database.MigrateAsync();
         }
 
