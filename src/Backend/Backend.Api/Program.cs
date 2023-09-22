@@ -61,4 +61,4 @@ app.UseWebSockets();
 
 app.MapGraphQL();
 
-app.Run();
+await app.RunWithGraphQLCommandsAsync(args);
