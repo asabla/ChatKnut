@@ -13,7 +13,7 @@
       <PackageReference Include="HotChocolate.Data.EntityFramework" Version="13.7.0" />
       <PackageReference Include="HotChocolate.PersistedQueries.InMemory" Version="13.7.0" />
       <PackageReference Include="HotChocolate.Subscriptions" Version="13.7.0" />
-      <PackageReference Include="HotChocolate.AspNetCore.CommandLine" Version="13.5.1" />
+      <PackageReference Include="HotChocolate.AspNetCore.CommandLine" Version="13.7.0" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.12" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.13" />
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
