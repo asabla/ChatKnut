@@ -1,0 +1,30 @@
+name: Dotnet format check on PRs
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  dotnet-format:
+    runs-on: ubuntu-latest
+    name: Check current formatting
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup .Net
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Add dotnet-format problem matcher
+        uses: xt0rted/dotnet-format-problem-matcher@v1
+
+      - name: Restore dotnet tools
+        uses: xt0rted/dotnet-tool-restore@v1
+
+      - name: Run dotnet format
+        uses: xt0rted/dotnet-format@v1
+        with:
+          only-changed-files: "true"
+
