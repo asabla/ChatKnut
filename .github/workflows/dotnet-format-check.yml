@@ -17,14 +17,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Add dotnet-format problem matcher
-        uses: xt0rted/dotnet-format-problem-matcher@v1
+      - name: Restore dependencies
+        run: dotnet restore
 
-      - name: Restore dotnet tools
-        uses: xt0rted/dotnet-tool-restore@v1
-
-      - name: Run dotnet format
-        uses: xt0rted/dotnet-format@v1
-        with:
-          only-changed-files: "true"
+      - name: Format files
+        run: dotnet format --verify-no-changes --verbosity diagnostic
 
