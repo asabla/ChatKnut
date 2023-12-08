@@ -3,6 +3,7 @@ using ChatKnut.Common.TwitchChat;
 using ChatKnut.Data.Chat;
 
 using HotChocolate.Types.Pagination;
+
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
