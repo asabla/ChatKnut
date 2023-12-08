@@ -52,6 +52,7 @@ public class ChatService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
+        _logger.BeginScope($"[{nameof(ChatService)}]");
         _logger.LogInformation($"Starting {nameof(ChatService)}");
 
         _logger.LogInformation("Make sure database has been created and have latest migrations");
@@ -78,11 +79,11 @@ public class ChatService : BackgroundService
                     }
                     else
                     {
-                        _logger.LogDebug(
+                        _logger.LogInformation(
                             "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}",
                             msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
 
-                        await InsertMessage(msg);
+                        // await InsertMessage(msg);
                     }
                 }
                 else
