@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ChatKnut.Data.Chat.Services;
 
-public interface IDataService
+public interface IQueueService
 {
     EntityEntry<ChatMessage>? InsertMessage(ChatMessage message);
     Task<ChatKnutDbContext> CreateDbContext();
@@ -15,11 +15,11 @@ public interface IDataService
     Task<Channel> GetOrCreateChannelAsync(string channelName);
 }
 
-public class DataService(
+public class QueueService(
     IDbContextFactory<ChatKnutDbContext> _dbContextFactory,
     IMemoryCache _memoryCache,
-    ILogger<DataService> _logger
-    ) : IDataService
+    ILogger<QueueService> _logger
+    ) : IQueueService
 {
     private ChatKnutDbContext _dbContext = null!;
 
