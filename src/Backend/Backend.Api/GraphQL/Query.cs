@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
-
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Models;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace ChatKnut.Backend.Api.GraphQL;
 

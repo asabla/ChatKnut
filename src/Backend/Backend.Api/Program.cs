@@ -22,7 +22,7 @@ builder.Services
 
 // Singleton services
 builder.Services
-    .AddSingleton<IDataService, DataService>();
+    .AddSingleton<IQueueService, QueueService>();
 builder.Services
     .AddSingleton<IStorageService, StorageService>();
 

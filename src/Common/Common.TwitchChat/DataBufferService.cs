@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace ChatKnut.Common.TwitchChat;
 
 public class DataBufferService(
-    IDataService _dataService,
+    IQueueService _dataService,
     IStorageService _storageService,
     ITopicEventSender _eventSender,
     ILogger<DataBufferService> _logger
@@ -94,6 +94,10 @@ public class DataBufferService(
                 ChannelId = channel.Id
             });
 
+            // TODO: I don't think this one is working properly now
+            // probably need to realize the objects (SaveChanges) before
+            // the actual object is available. This needs to be refactored
+            // into not relying on the saved state in database
             if (dbMessage is not null)
             {
                 await _eventSender.SendAsync(m.Channel, new ChatMessage
@@ -105,19 +109,12 @@ public class DataBufferService(
                     UserId = user.Id,
                     User = user,
                     ChannelId = channel.Id,
-                    Channel = channel 
+                    Channel = channel
                 });
             }
         }
 
         await _dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
-
-        // TODO: add support for live reporting of message to 
-        // graphql subscription
-        // -------------------------------------------------------
-        // Manual mapping is needed for avoiding null values for
-        // user and channel entities
-        // -------------------------------------------------------
     }
 }
