@@ -15,6 +15,7 @@ public class ChatKnutDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        // ChatMessage
         builder
             .Entity<ChatMessage>()
             .HasIndex(x => x.Id)
@@ -23,6 +24,7 @@ public class ChatKnutDbContext : DbContext
             .Entity<ChatMessage>()
             .HasIndex(x => x.CreatedUtc);
 
+        // User
         builder
             .Entity<User>()
             .HasIndex(x => x.Id);
@@ -33,6 +35,7 @@ public class ChatKnutDbContext : DbContext
             .Entity<User>()
             .HasIndex(x => x.CreatedUtc);
 
+        // Channel
         builder
             .Entity<Channel>()
             .HasIndex(x => x.Id);

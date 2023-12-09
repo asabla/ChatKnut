@@ -1,6 +1,7 @@
 using ChatKnut.Backend.Api.GraphQL;
 using ChatKnut.Common.TwitchChat;
 using ChatKnut.Data.Chat;
+using ChatKnut.Data.Chat.Services;
 
 using HotChocolate.Types.Pagination;
 
@@ -19,11 +20,22 @@ builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
 builder.Services
     .AddMemoryCache();
 
+// Singleton services
+builder.Services
+    .AddSingleton<IDataService, DataService>();
+builder.Services
+    .AddSingleton<IStorageService, StorageService>();
+
 // Background service setup
 builder.Services
     .AddSingleton<ChatService>();
 builder.Services
     .AddHostedService(sp => sp.GetService<ChatService>()!);
+
+builder.Services
+    .AddSingleton<DataBufferService>();
+builder.Services
+    .AddHostedService(sp => sp.GetService<DataBufferService>()!);
 
 // GraphQL setup
 builder.Services
@@ -36,6 +48,7 @@ builder.Services
         })
         .RegisterDbContext<ChatKnutDbContext>(DbContextKind.Pooled)
         .RegisterService<ChatService>()
+        .RegisterService<DataBufferService>()
         .SetPagingOptions(new PagingOptions
         {
             MaxPageSize = 200,
