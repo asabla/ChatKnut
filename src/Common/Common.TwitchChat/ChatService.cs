@@ -1,13 +1,9 @@
 using System.Net.Sockets;
 
 using ChatKnut.Common.TwitchChat.Models;
-using ChatKnut.Data.Chat;
-using ChatKnut.Data.Chat.Models;
 
 using HotChocolate.Subscriptions;
 
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -15,9 +11,8 @@ namespace ChatKnut.Common.TwitchChat;
 
 public class ChatService : BackgroundService
 {
+    private readonly IStorageService _storageService;
     private readonly ILogger<ChatService> _logger;
-    private readonly IDbContextFactory<ChatKnutDbContext> _dbContextFactory;
-    private readonly IMemoryCache _memoryCache;
     private readonly ITopicEventSender _eventSender;
 
     private TcpClient _tcpClient;
@@ -27,19 +22,15 @@ public class ChatService : BackgroundService
     private StreamReader _inputStream = null!;
 
     public ChatService(
+        IStorageService storageService,
         ILogger<ChatService> logger,
-        IDbContextFactory<ChatKnutDbContext> dbContextFactory,
-        IMemoryCache memoryCache,
         ITopicEventSender eventSender)
     {
+        _storageService = storageService ??
+            throw new ArgumentNullException(nameof(storageService));
+
         _logger = logger ??
             throw new ArgumentNullException(nameof(logger));
-
-        _memoryCache = memoryCache ??
-            throw new ArgumentNullException(nameof(memoryCache));
-
-        _dbContextFactory = dbContextFactory ??
-            throw new ArgumentNullException(nameof(dbContextFactory));
 
         _eventSender = eventSender ??
             throw new ArgumentNullException(nameof(eventSender));
@@ -55,16 +46,7 @@ public class ChatService : BackgroundService
         _logger.BeginScope($"[{nameof(ChatService)}]");
         _logger.LogInformation($"Starting {nameof(ChatService)}");
 
-        _logger.LogInformation("Make sure database has been created and have latest migrations");
-        await using ChatKnutDbContext context = _dbContextFactory.CreateDbContext();
-
-        if (await context.Database.EnsureCreatedAsync() is true)
-        {
-            _logger.LogInformation("Applying migrations after creating database");
-            await context.Database.MigrateAsync();
-        }
-
-        while (!cancellationToken.IsCancellationRequested)
+        while (cancellationToken.IsCancellationRequested is false)
         {
             try
             {
@@ -79,11 +61,11 @@ public class ChatService : BackgroundService
                     }
                     else
                     {
-                        _logger.LogInformation(
+                        _logger.LogDebug(
                             "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}",
                             msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
 
-                        // await InsertMessage(msg);
+                        HandleMessage(msg);
                     }
                 }
                 else
@@ -102,6 +84,8 @@ public class ChatService : BackgroundService
             }
         }
 
+        _logger.LogInformation($"Shutting down {nameof(ChatService)}...");
+
         await Disconnect();
     }
 
@@ -117,101 +101,7 @@ public class ChatService : BackgroundService
 
     #region Private methods
 
-    private async Task<User> GetOrCreateUser(
-        string userName,
-        ChatKnutDbContext context)
-    {
-        if (_memoryCache.TryGetValue($"user_{userName}", out object? value)
-            && value is User cacheUser)
-        {
-            _logger.LogDebug("Found user '{userName}' in cache", userName);
-            return cacheUser;
-        }
-        else
-        {
-            _logger.LogDebug("User '{userName}' was not found in cache", userName);
-
-            User resultUser = null!;
-            if (!context.Users.Any(x => x.UserName.Equals(userName)))
-            {
-                _logger.LogDebug("User '{userName}' was not found in Db, creating user", userName);
-                var result = await context.Users.AddAsync(new()
-                {
-                    Id = Guid.NewGuid(),
-                    UserName = userName,
-                    CreatedUtc = DateTime.UtcNow
-                });
-
-                await context.SaveChangesAsync();
-
-                resultUser = result.Entity;
-            }
-            else
-            {
-                _logger.LogDebug("User '{userName}' found in Db", userName);
-
-                resultUser = await context.Users
-                    .Where(x => x.UserName.Equals(userName))
-                    .FirstOrDefaultAsync() ?? null!;
-            }
-
-            _memoryCache.Set($"user_{userName}", resultUser, new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
-            });
-
-            return resultUser;
-        }
-    }
-
-    private async Task<Channel> GetOrCreateChannel(
-        string channelName,
-        ChatKnutDbContext context)
-    {
-        if (_memoryCache.TryGetValue($"channel_{channelName}", out object? value)
-            && value is Channel cacheChannel)
-        {
-            _logger.LogDebug("Found channel '{channelName}' in cache", channelName);
-            return cacheChannel;
-        }
-        else
-        {
-            _logger.LogDebug("Channel '{channelName}' was not found in cache", channelName);
-
-            Channel resultChannel = null!;
-            if (!context.Channels.Any(x => x.ChannelName.Equals(channelName)))
-            {
-                _logger.LogDebug("Channel '{channelName}' was not found in Db, creating channel", channelName);
-                var result = await context.Channels.AddAsync(new()
-                {
-                    Id = Guid.NewGuid(),
-                    ChannelName = channelName,
-                    CreatedUtc = DateTime.UtcNow
-                });
-
-                await context.SaveChangesAsync();
-
-                resultChannel = result.Entity;
-            }
-            else
-            {
-                _logger.LogDebug("Channel '{channelName}' found in Db", channelName);
-
-                resultChannel = await context.Channels
-                    .Where(x => x.ChannelName.Equals(channelName))
-                    .FirstOrDefaultAsync() ?? null!;
-            }
-
-            _memoryCache.Set($"channel_{channelName}", resultChannel, new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(3)
-            });
-
-            return resultChannel;
-        }
-    }
-
-    private async Task InsertMessage(RawIrcMessage msg)
+    private void HandleMessage(RawIrcMessage msg)
     {
         if (string.IsNullOrWhiteSpace(msg.Channel)
             || string.IsNullOrWhiteSpace(msg.Sender)
@@ -230,56 +120,8 @@ public class ChatService : BackgroundService
             return;
         }
 
-        await using ChatKnutDbContext context
-            = _dbContextFactory.CreateDbContext();
-
-        using var transaction = await context
-            .Database.BeginTransactionAsync();
-
-        var chatUser = await GetOrCreateUser(msg.Sender, context);
-        if (chatUser is null)
-        {
-            _logger.LogWarning("Unable to GetOrCreateUser '{userName}'", msg.Sender);
-            return;
-        }
-
-        var chatChannel = await GetOrCreateChannel(msg.Channel, context);
-        if (chatChannel is null)
-        {
-            _logger.LogWarning("Unable to GetOrCreateChannel '{channelName}'", msg.Channel);
-            return;
-        }
-
-        Guid userId = chatUser.Id;
-        Guid? channelId = chatChannel.Id;
-
-        var dbMessage = await context.ChatMessages.AddAsync(new()
-        {
-            Id = Guid.NewGuid(),
-            ChannelName = msg.Channel,
-            CreatedUtc = DateTime.UtcNow,
-            Message = msg.Message,
-            UserId = userId,
-            ChannelId = channelId ?? Guid.Empty
-        });
-
-        _ = await context.SaveChangesAsync();
-
-        // Manual mapping is needed for avoiding null values for
-        // user and channel entities
-        await _eventSender.SendAsync(msg.Channel, new ChatMessage
-        {
-            Id = dbMessage.Entity.Id,
-            ChannelName = dbMessage.Entity.ChannelName,
-            Message = dbMessage.Entity.Message,
-            CreatedUtc = dbMessage.Entity.CreatedUtc,
-            UserId = chatUser.Id,
-            User = chatUser,
-            ChannelId = chatChannel.Id,
-            Channel = chatChannel
-        });
-
-        await transaction.CommitAsync();
+        // Put message on queue
+        _storageService.AddToQueue(msg);
     }
 
     private async Task ConnectToIrcAsync(CancellationToken token)
@@ -294,29 +136,6 @@ public class ChatService : BackgroundService
 
         await SendStringMessageAsync($"NICK {_ircAccountname}");
         await SendStringMessageAsync("PASS SCHMOOPIIE");
-
-        await using ChatKnutDbContext context
-            = _dbContextFactory.CreateDbContext();
-
-        var channels = await context.Channels
-            .Where(x => x.AutoJoin)
-            .Select(x => x.ChannelName.ToLowerInvariant())
-            .ToListAsync(cancellationToken: token) ?? new List<string>();
-
-        _logger.LogInformation(
-            "Found {channels.Count} number of channels to join",
-            channels.Count);
-
-        var options = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = 5
-        };
-
-        foreach (var chan in channels)
-        {
-            await JoinChannelAsync($"#{chan}");
-            await Task.Delay(100, token);
-        }
     }
 
     private Task Disconnect()
@@ -348,6 +167,7 @@ public class ChatService : BackgroundService
         }
         catch
         {
+            _logger.LogWarning($"Unable to parse message: {message}");
             return null!;
         }
     }

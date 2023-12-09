@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Models;
 
@@ -10,19 +12,19 @@ public class Query
     [UseFiltering]
     [UseSorting]
     public IQueryable<User> GetUsers(ChatKnutDbContext context)
-        => context.Users;
+        => context.Users.AsNoTracking();
 
     [UseOffsetPaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
     public IQueryable<ChatMessage> GetMessages(ChatKnutDbContext context)
-        => context.ChatMessages;
+        => context.ChatMessages.AsNoTracking();
 
     [UseOffsetPaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
     public IQueryable<Channel> GetChannels(ChatKnutDbContext context)
-        => context.Channels;
+        => context.Channels.AsNoTracking();
 }
