@@ -11,13 +11,13 @@
     <PackageVersion Include="HotChocolate.Data.EntityFramework" Version="13.9.0" />
     <PackageVersion Include="HotChocolate.PersistedQueries.InMemory" Version="13.9.0" />
     <PackageVersion Include="HotChocolate.Subscriptions" Version="13.9.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.3" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.3">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.4">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.3">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.4">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
