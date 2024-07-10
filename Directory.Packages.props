@@ -9,7 +9,7 @@
     <PackageVersion Include="HotChocolate.AspNetCore.CommandLine" Version="13.9.7" />
     <PackageVersion Include="HotChocolate.Caching" Version="13.9.7" />
     <PackageVersion Include="HotChocolate.Data.EntityFramework" Version="13.9.6" />
-    <PackageVersion Include="HotChocolate.PersistedQueries.InMemory" Version="13.9.6" />
+    <PackageVersion Include="HotChocolate.PersistedQueries.InMemory" Version="13.9.7" />
     <PackageVersion Include="HotChocolate.Subscriptions" Version="13.9.7" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.6">
