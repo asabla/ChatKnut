@@ -11,7 +11,7 @@
     <PackageVersion Include="HotChocolate.Data.EntityFramework" Version="13.9.12" />
     <PackageVersion Include="HotChocolate.PersistedQueries.InMemory" Version="13.9.7" />
     <PackageVersion Include="HotChocolate.Subscriptions" Version="13.9.12" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.7" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.7">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
