@@ -24,7 +24,7 @@ jobs:
       - name: restore nuget packages
         run: dotnet restore
 
-      - name: build
+      - name: build solution
         run: dotnet build --no-restore
 
       - name: Try to generate GraphQL schema
