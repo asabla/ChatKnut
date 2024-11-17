@@ -1,37 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <LangVersion>Latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
 
-  <PropertyGroup>
-    <!-- Workaround until next .Net 8 release -->
-    <!-- ref: https://github.com/dotnet/aspnetcore/issues/50836#issuecomment-1812985321 -->
-    <NoWarn>$(NoWarn);AD0001</NoWarn>
-  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Common\Common.TwitchChat\Common.TwitchChat.csproj" />
+    <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
+  </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\..\Common\Common.TwitchChat\Common.TwitchChat.csproj" />
-      <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="HotChocolate.AspNetCore" />
-      <PackageReference Include="HotChocolate.AspNetCore.CommandLine" />
-      <PackageReference Include="HotChocolate.Caching" />
-      <PackageReference Include="HotChocolate.Data.EntityFramework" />
-      <PackageReference Include="HotChocolate.PersistedQueries.InMemory" />
-      <PackageReference Include="HotChocolate.Subscriptions" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        <PrivateAssets>all</PrivateAssets>
-      </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
-      <PackageReference Include="Microsoft.Extensions.Hosting" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="HotChocolate.AspNetCore" />
+    <PackageReference Include="HotChocolate.AspNetCore.CommandLine" />
+    <PackageReference Include="HotChocolate.Caching" />
+    <PackageReference Include="HotChocolate.Data.EntityFramework" />
+    <PackageReference Include="HotChocolate.Subscriptions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
 
   </Project>

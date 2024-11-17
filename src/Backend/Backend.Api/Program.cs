@@ -3,8 +3,6 @@ using ChatKnut.Common.TwitchChat;
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Services;
 
-using HotChocolate.Types.Pagination;
-
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,19 +39,19 @@ builder.Services
 builder.Services
     .AddGraphQLServer()
         .InitializeOnStartup()
-        .ModifyRequestOptions(opt =>
+        .ModifyPagingOptions(options =>
         {
-            opt.Complexity.Enable = true;
-            opt.Complexity.MaximumAllowed = 1500;
+            options.IncludeTotalCount = true;
+            options.IncludeNodesField = true;
+            options.DefaultPageSize = 50;
+            options.MaxPageSize = 200;
         })
-        .RegisterDbContext<ChatKnutDbContext>(DbContextKind.Pooled)
-        .RegisterService<ChatService>()
-        .RegisterService<DataBufferService>()
-        .SetPagingOptions(new PagingOptions
+        .ModifyCostOptions(options =>
         {
-            MaxPageSize = 200,
-            IncludeTotalCount = true
+            options.MaxTypeCost = 1000;
+            options.MaxFieldCost = 1000;
         })
+    .RegisterDbContextFactory<ChatKnutDbContext>()
     .AddFiltering()
     .AddSorting()
     .AddProjections()
@@ -61,9 +59,7 @@ builder.Services
     .AddMutationType<Mutation>()
     .AddSubscriptionType<Subscription>()
     .AddInMemorySubscriptions()
-    .AddCacheControl()
-    .AddInMemoryQueryStorage()
-    .UseAutomaticPersistedQueryPipeline();
+    .AddCacheControl();
 
 var app = builder.Build();
 
