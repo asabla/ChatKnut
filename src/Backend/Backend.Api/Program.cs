@@ -7,11 +7,13 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Setting up Aspire service defaults
+builder.AddGraphQLServiceDefaults();
+
 // Is required now for ChatService, might need to be refactored to support
 // an ordinary pooled db context instead
 builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
-    => options.UseSqlite(builder
-        .Configuration
+    => options.UseSqlite(builder.Configuration
         .GetConnectionString("SqliteConnectionString")));
 
 // Caching things
@@ -39,6 +41,8 @@ builder.Services
 builder.Services
     .AddGraphQLServer()
         .InitializeOnStartup()
+        .ModifyRequestOptions(options => options.IncludeExceptionDetails
+            = builder.Environment.IsDevelopment())
         .ModifyPagingOptions(options =>
         {
             options.IncludeTotalCount = true;
@@ -59,7 +63,8 @@ builder.Services
     .AddMutationType<Mutation>()
     .AddSubscriptionType<Subscription>()
     .AddInMemorySubscriptions()
-    .AddCacheControl();
+    .AddCacheControl()
+    .AddInstrumentation();
 
 var app = builder.Build();
 
@@ -67,7 +72,9 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 
 app.UseWebSockets();
-
 app.MapGraphQL();
+
+// Setting up Aspire default endpoints
+app.MapDefaultEndpoints();
 
 await app.RunWithGraphQLCommandsAsync(args);
