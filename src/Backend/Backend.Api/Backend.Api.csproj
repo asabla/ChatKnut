@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Common\Common.TwitchChat\Common.TwitchChat.csproj" />
     <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
+    <ProjectReference Include="..\..\Common\Common.ServiceDefaults\Common.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +19,7 @@
     <PackageReference Include="HotChocolate.AspNetCore.CommandLine" />
     <PackageReference Include="HotChocolate.Caching" />
     <PackageReference Include="HotChocolate.Data.EntityFramework" />
+    <PackageReference Include="HotChocolate.Diagnostics" />
     <PackageReference Include="HotChocolate.Subscriptions" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
