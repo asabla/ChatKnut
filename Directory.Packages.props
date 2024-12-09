@@ -10,7 +10,7 @@
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="9.0.0" />
     <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="9.0.0" />
     <PackageVersion Include="HotChocolate.AspNetCore" Version="14.1.0" />
-    <PackageVersion Include="HotChocolate.AspNetCore.CommandLine" Version="14.1.0" />
+    <PackageVersion Include="HotChocolate.AspNetCore.CommandLine" Version="14.2.0" />
     <PackageVersion Include="HotChocolate.Caching" Version="14.1.0" />
     <PackageVersion Include="HotChocolate.Data.EntityFramework" Version="14.1.0" />
     <PackageVersion Include="HotChocolate.Diagnostics" Version="14.1.0" />
