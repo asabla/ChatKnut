@@ -53,7 +53,7 @@ public class ChatService : BackgroundService
                 if (_tcpClient.Connected)
                 {
                     var msg = await ReadMessageAsync();
-                    if (msg?.IsEmpty != false) continue;
+                    if (msg == null || msg.IsEmpty) continue;
 
                     if (msg.IsPing)
                     {
@@ -94,7 +94,7 @@ public class ChatService : BackgroundService
         if (!channel.StartsWith("#"))
             throw new ArgumentException("Channel must start with #", nameof(channel));
 
-        _logger.LogInformation("Joinging channel '{channel}'", channel);
+        _logger.LogInformation("Joining channel '{channel}'", channel);
 
         await SendStringMessageAsync($"JOIN {channel}");
     }
@@ -154,12 +154,12 @@ public class ChatService : BackgroundService
         await SendStringMessageAsync("PONG :tmi.twitch.tv");
     }
 
-    private async Task<RawIrcMessage> ReadMessageAsync()
+    private async Task<RawIrcMessage?> ReadMessageAsync()
     {
         var message = await _inputStream.ReadLineAsync();
 
         if (message?.StartsWith(":tmi.twitch.tv") != false)
-            return null!;
+            return null;
 
         try
         {
@@ -168,7 +168,7 @@ public class ChatService : BackgroundService
         catch
         {
             _logger.LogWarning($"Unable to parse message: {message}");
-            return null!;
+            return null;
         }
     }
 
