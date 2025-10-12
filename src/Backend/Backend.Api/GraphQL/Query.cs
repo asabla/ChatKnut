@@ -7,21 +7,21 @@ namespace ChatKnut.Backend.Api.GraphQL;
 
 public class Query
 {
-    [UseOffsetPaging]
+    [UsePaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
     public IQueryable<User> GetUsers(ChatKnutDbContext context)
         => context.Users.AsNoTracking();
 
-    [UseOffsetPaging]
+    [UsePaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
     public IQueryable<ChatMessage> GetMessages(ChatKnutDbContext context)
         => context.ChatMessages.AsNoTracking();
 
-    [UseOffsetPaging]
+    [UsePaging]
     [UseProjection]
     [UseFiltering]
     [UseSorting]
