@@ -88,6 +88,8 @@ public class DataBufferService(
             "databuffer.flush", ActivityKind.Internal);
         activity?.SetTag("messaging.batch.message_count", messages.Count);
 
+        var stopwatch = Stopwatch.StartNew();
+
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
         foreach (var m in messages)
@@ -127,5 +129,9 @@ public class DataBufferService(
 
         await _dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
+
+        stopwatch.Stop();
+        ChatTelemetry.BufferFlushDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
+        ChatTelemetry.BufferFlushSize.Record(messages.Count);
     }
 }

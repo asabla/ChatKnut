@@ -117,6 +117,8 @@ public class ChatService : BackgroundService
             || string.IsNullOrWhiteSpace(msg.Message))
         {
             activity?.SetStatus(ActivityStatusCode.Error, "incomplete message");
+            ChatTelemetry.MessagesDropped.Add(
+                1, new KeyValuePair<string, object?>("reason", "incomplete"));
             _logger.LogWarning("Message does not contain enough information");
             return;
         }
@@ -127,12 +129,19 @@ public class ChatService : BackgroundService
         if (msg.Sender.StartsWith("justinfan"))
         {
             activity?.SetTag("twitch.dropped_reason", "system_account");
+            ChatTelemetry.MessagesDropped.Add(
+                1,
+                new KeyValuePair<string, object?>("reason", "system_account"),
+                new KeyValuePair<string, object?>("twitch.channel", msg.Channel));
             _logger.LogInformation(
                 "System accounts ({UserName}) will not be logged",
                 msg.Sender);
 
             return;
         }
+
+        ChatTelemetry.MessagesReceived.Add(
+            1, new KeyValuePair<string, object?>("twitch.channel", msg.Channel));
 
         // Put message on queue
         _storageService.AddToQueue(msg);
@@ -181,6 +190,8 @@ public class ChatService : BackgroundService
         }
         catch
         {
+            ChatTelemetry.MessagesDropped.Add(
+                1, new KeyValuePair<string, object?>("reason", "parse_error"));
             _logger.LogWarning("Unable to parse message: {RawMessage}", message);
             return null!;
         }
