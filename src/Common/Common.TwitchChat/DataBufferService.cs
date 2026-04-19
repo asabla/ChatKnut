@@ -30,15 +30,7 @@ public class DataBufferService(
             ["Service"] = nameof(DataBufferService),
         });
 
-        _logger.LogInformation("Make sure database has been created and have latest migrations");
         _dbContext = await _dataService.CreateDbContext();
-
-        if (await _dbContext.Database.EnsureCreatedAsync() is true)
-        {
-            _logger.LogWarning("Applying migrations after creating database");
-            await _dbContext.Database.MigrateAsync();
-        }
-
         _logger.LogInformation("Starting {Service}", nameof(DataBufferService));
 
         int bufferInterval = 500;

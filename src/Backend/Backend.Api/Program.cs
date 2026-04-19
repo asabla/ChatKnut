@@ -11,15 +11,18 @@ var builder = WebApplication.CreateBuilder(args);
 // Setting up Aspire service defaults
 builder.AddGraphQLServiceDefaults();
 
-// Is required now for ChatService, might need to be refactored to support
-// an ordinary pooled db context instead
-builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options
-    => options.UseSqlite(builder.Configuration
-        .GetConnectionString("SqliteConnectionString")));
+// Pooled DbContext factory over the Aspire-provided Postgres connection
+// string. Using the factory form so HotChocolate's RegisterDbContextFactory
+// gets per-request contexts instead of a shared one.
+builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("chatknut")));
 
-// Caching things
-builder.Services
-    .AddMemoryCache();
+// Distributed cache backed by Garnet (registered as "cache" in the AppHost).
+// Redis protocol, so the StackExchange.Redis integration works against it.
+builder.AddRedisDistributedCache("cache");
+
+// TODO(phase 3): drop IMemoryCache once QueueService is switched to IDistributedCache
+builder.Services.AddMemoryCache();
 
 // Singleton services
 builder.Services
