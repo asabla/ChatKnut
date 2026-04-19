@@ -6,6 +6,7 @@ namespace ChatKnut.Common.TwitchChat;
 
 public interface IStorageService
 {
+    int Count { get; }
     void AddToQueue(RawIrcMessage message);
     bool IsEmpty();
     bool TryPeek(out RawIrcMessage? message);
@@ -15,6 +16,8 @@ public interface IStorageService
 public class StorageService : IStorageService
 {
     private readonly ConcurrentBag<RawIrcMessage> _messageQueue = new();
+
+    public int Count => _messageQueue.Count;
 
     public void AddToQueue(RawIrcMessage message)
         => _messageQueue.Add(message);

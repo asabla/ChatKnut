@@ -1,5 +1,6 @@
 using ChatKnut.Backend.Api.GraphQL;
 using ChatKnut.Common.TwitchChat;
+using ChatKnut.Common.TwitchChat.Telemetry;
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Services;
 
@@ -36,6 +37,10 @@ builder.Services
     .AddSingleton<DataBufferService>();
 builder.Services
     .AddHostedService(sp => sp.GetService<DataBufferService>()!);
+
+// Register app-level telemetry instruments that need DI wiring (queue-depth gauge)
+builder.Services
+    .AddChatKnutTelemetry();
 
 // GraphQL setup
 builder.Services
