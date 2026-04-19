@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Net.Sockets;
 
 using ChatKnut.Common.TwitchChat.Models;
+using ChatKnut.Common.TwitchChat.Telemetry;
 
 using HotChocolate.Subscriptions;
 
@@ -107,16 +109,24 @@ public class ChatService : BackgroundService
 
     private void HandleMessage(RawIrcMessage msg)
     {
+        using var activity = ChatTelemetry.ActivitySource.StartActivity(
+            "chatservice.handle_message", ActivityKind.Consumer);
+
         if (string.IsNullOrWhiteSpace(msg.Channel)
             || string.IsNullOrWhiteSpace(msg.Sender)
             || string.IsNullOrWhiteSpace(msg.Message))
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "incomplete message");
             _logger.LogWarning("Message does not contain enough information");
             return;
         }
 
+        activity?.SetTag("twitch.channel", msg.Channel);
+        activity?.SetTag("twitch.sender", msg.Sender);
+
         if (msg.Sender.StartsWith("justinfan"))
         {
+            activity?.SetTag("twitch.dropped_reason", "system_account");
             _logger.LogInformation(
                 "System accounts ({UserName}) will not be logged",
                 msg.Sender);

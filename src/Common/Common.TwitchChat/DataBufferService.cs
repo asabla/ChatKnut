@@ -1,4 +1,7 @@
+using System.Diagnostics;
+
 using ChatKnut.Common.TwitchChat.Models;
+using ChatKnut.Common.TwitchChat.Telemetry;
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Models;
 using ChatKnut.Data.Chat.Services;
@@ -81,6 +84,10 @@ public class DataBufferService(
 
     private async Task HandleBufferedMessages(List<RawIrcMessage> messages)
     {
+        using var activity = ChatTelemetry.ActivitySource.StartActivity(
+            "databuffer.flush", ActivityKind.Internal);
+        activity?.SetTag("messaging.batch.message_count", messages.Count);
+
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
         foreach (var m in messages)
