@@ -1,4 +1,6 @@
 using ChatKnut.Backend.Api.GraphQL;
+using ChatKnut.Backend.Api.Subscriptions;
+using ChatKnut.Common.Messaging;
 using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Services;
 
@@ -22,6 +24,11 @@ builder.AddRedisDistributedCache("cache");
 // Repository shared with the ingestion worker via the same Postgres + cache.
 builder.Services
     .AddSingleton<IChatRepository, ChatRepository>();
+
+// Cross-service Redis bus (chat message fan-out + join commands) plus the
+// bridge that pulls chat messages off the bus into HotChocolate topics.
+builder.Services.AddChatKnutMessageBus();
+builder.Services.AddHostedService<ChatMessageBridge>();
 
 // GraphQL setup
 builder.Services
@@ -48,7 +55,7 @@ builder.Services
     .AddQueryType<Query>()
     .AddMutationType<Mutation>()
     .AddSubscriptionType<Subscription>()
-    .AddRedisSubscriptions()
+    .AddInMemorySubscriptions()
     .AddCacheControl()
     .AddInstrumentation();
 

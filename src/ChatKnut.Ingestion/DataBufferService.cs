@@ -1,11 +1,10 @@
 using System.Diagnostics;
 
+using ChatKnut.Common.Messaging;
 using ChatKnut.Data.Chat.Models;
 using ChatKnut.Data.Chat.Services;
 using ChatKnut.Ingestion.Models;
 using ChatKnut.Ingestion.Telemetry;
-
-using HotChocolate.Subscriptions;
 
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,7 +14,7 @@ namespace ChatKnut.Ingestion;
 public sealed class DataBufferService(
     IStorageService _storage,
     IChatRepository _repository,
-    ITopicEventSender _eventSender,
+    IChatMessageBus _messageBus,
     ILogger<DataBufferService> _logger) : BackgroundService
 {
     private static readonly TimeSpan MaxBufferWindow = TimeSpan.FromMilliseconds(500);
@@ -121,9 +120,9 @@ public sealed class DataBufferService(
         await _repository.PromoteToCacheAsync(
             newlySeenUsers.Values, newlySeenChannels.Values, cancellationToken);
 
-        foreach (var (raw, entity, userRef, channelRef) in savedMessages)
+        foreach (var (_, entity, userRef, channelRef) in savedMessages)
         {
-            await _eventSender.SendAsync(raw.Channel, new ChatMessage
+            await _messageBus.PublishAsync(new ChatMessage
             {
                 Id = entity.Id,
                 ChannelName = entity.ChannelName,

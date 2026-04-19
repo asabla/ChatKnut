@@ -9,8 +9,9 @@
 
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
+    <ProjectReference Include="..\..\Common\Common.Messaging\Common.Messaging.csproj" />
     <ProjectReference Include="..\..\Common\Common.ServiceDefaults\Common.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\Data\Data.Chat\Data.Chat.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,7 +23,6 @@
     <PackageReference Include="HotChocolate.Data.EntityFramework" />
     <PackageReference Include="HotChocolate.Diagnostics" />
     <PackageReference Include="HotChocolate.Subscriptions" />
-    <PackageReference Include="HotChocolate.Subscriptions.Redis" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

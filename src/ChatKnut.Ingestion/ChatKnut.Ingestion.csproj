@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Common\Common.Messaging\Common.Messaging.csproj" />
     <ProjectReference Include="..\Common\Common.ServiceDefaults\Common.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Data\Data.Chat\Data.Chat.csproj" />
   </ItemGroup>
@@ -16,8 +17,6 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
-    <PackageReference Include="HotChocolate.Subscriptions" />
-    <PackageReference Include="HotChocolate.Subscriptions.Redis" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
