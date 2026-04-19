@@ -21,12 +21,9 @@ builder.Services.AddPooledDbContextFactory<ChatKnutDbContext>(options =>
 // Redis protocol, so the StackExchange.Redis integration works against it.
 builder.AddRedisDistributedCache("cache");
 
-// TODO(phase 3): drop IMemoryCache once QueueService is switched to IDistributedCache
-builder.Services.AddMemoryCache();
-
-// Singleton services
+// Repository / storage services
 builder.Services
-    .AddSingleton<IQueueService, QueueService>();
+    .AddSingleton<IChatRepository, ChatRepository>();
 builder.Services
     .AddSingleton<IStorageService, StorageService>();
 
