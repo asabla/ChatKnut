@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Reflection;
 
-namespace ChatKnut.Common.TwitchChat.Telemetry;
+namespace ChatKnut.Ingestion.Telemetry;
 
 public static class ChatTelemetry
 {

@@ -20,4 +20,11 @@ builder.AddProject<Projects.Backend_Api>("backend")
     .WaitFor(cache)
     .WaitForCompletion(migrations);
 
+builder.AddProject<Projects.ChatKnut_Ingestion>("ingestion")
+    .WithReference(chatKnutDb)
+    .WithReference(cache)
+    .WaitFor(chatKnutDb)
+    .WaitFor(cache)
+    .WaitForCompletion(migrations);
+
 builder.Build().Run();

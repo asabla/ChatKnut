@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 
-using ChatKnut.Common.TwitchChat.Models;
+using ChatKnut.Ingestion.Models;
 
-namespace ChatKnut.Common.TwitchChat;
+namespace ChatKnut.Ingestion;
 
 public interface IStorageService
 {

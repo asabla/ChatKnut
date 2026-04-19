@@ -2,7 +2,7 @@ using ChatKnut.Data.Chat.Services;
 
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ChatKnut.Common.TwitchChat.Telemetry;
+namespace ChatKnut.Ingestion.Telemetry;
 
 public static class TelemetryServiceCollectionExtensions
 {

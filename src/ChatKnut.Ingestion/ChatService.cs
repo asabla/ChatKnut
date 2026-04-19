@@ -1,15 +1,15 @@
 using System.Diagnostics;
 using System.Net.Sockets;
 
-using ChatKnut.Common.TwitchChat.Models;
-using ChatKnut.Common.TwitchChat.Telemetry;
+using ChatKnut.Ingestion.Models;
+using ChatKnut.Ingestion.Telemetry;
 
 using HotChocolate.Subscriptions;
 
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace ChatKnut.Common.TwitchChat;
+namespace ChatKnut.Ingestion;
 
 public partial class ChatService : BackgroundService
 {

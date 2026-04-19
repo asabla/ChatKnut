@@ -1,7 +1,7 @@
 using System.Diagnostics;
 
-using ChatKnut.Common.TwitchChat.Models;
-using ChatKnut.Common.TwitchChat.Telemetry;
+using ChatKnut.Ingestion.Models;
+using ChatKnut.Ingestion.Telemetry;
 using ChatKnut.Data.Chat.Models;
 using ChatKnut.Data.Chat.Services;
 
@@ -10,7 +10,7 @@ using HotChocolate.Subscriptions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace ChatKnut.Common.TwitchChat;
+namespace ChatKnut.Ingestion;
 
 public class DataBufferService(
     IChatRepository _repository,
