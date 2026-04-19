@@ -22,6 +22,11 @@ public class DataBufferService(
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
+        using var _ = _logger.BeginScope(new Dictionary<string, object>
+        {
+            ["Service"] = nameof(DataBufferService),
+        });
+
         _logger.LogInformation("Make sure database has been created and have latest migrations");
         _dbContext = await _dataService.CreateDbContext();
 
@@ -31,8 +36,7 @@ public class DataBufferService(
             await _dbContext.Database.MigrateAsync();
         }
 
-        _logger.BeginScope($"[{nameof(DataBufferService)}]");
-        _logger.LogInformation($"Starting {nameof(DataBufferService)}...");
+        _logger.LogInformation("Starting {Service}", nameof(DataBufferService));
 
         int bufferInterval = 500;
         DateTime bufferLimitTime = DateTime.Now.AddMilliseconds(bufferInterval);
@@ -58,21 +62,21 @@ public class DataBufferService(
                 bufferedMessages.Add(tmpRawMessage);
             }
 
-            // If 500ms has taken since last run, then 
+            // If 500ms has taken since last run, then
             // try insert message into db
             if (DateTime.Now <= bufferLimitTime)
                 continue;
 
             bufferLimitTime = DateTime.Now.AddMilliseconds(bufferInterval);
 
-            _logger.LogInformation($"Start handling {bufferedMessages.Count} number of messages");
+            _logger.LogInformation("Start handling {MessageCount} messages", bufferedMessages.Count);
             await HandleBufferedMessages(bufferedMessages);
 
-            _logger.LogInformation($"Messages ({bufferedMessages.Count}) has been handled");
+            _logger.LogInformation("{MessageCount} messages have been handled", bufferedMessages.Count);
             bufferedMessages.Clear();
         }
 
-        _logger.LogInformation($"Shutting down {nameof(DataBufferService)}...");
+        _logger.LogInformation("Shutting down {Service}", nameof(DataBufferService));
     }
 
     private async Task HandleBufferedMessages(List<RawIrcMessage> messages)
