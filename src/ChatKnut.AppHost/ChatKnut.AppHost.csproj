@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Backend\Backend.Api\Backend.Api.csproj" />
+    <ProjectReference Include="..\ChatKnut.Migrations\ChatKnut.Migrations.csproj" />
   </ItemGroup>
 
 </Project>
