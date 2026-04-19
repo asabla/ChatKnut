@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 using ChatKnut.Ingestion.Models;
 
@@ -7,27 +7,59 @@ namespace ChatKnut.Ingestion;
 public interface IStorageService
 {
     int Count { get; }
-    void AddToQueue(RawIrcMessage message);
-    bool IsEmpty();
-    bool TryPeek(out RawIrcMessage? message);
-    bool TryTake(out RawIrcMessage? message);
+
+    // Try to enqueue without blocking. Returns false if the queue is full,
+    // which is load-shedding — the message is dropped rather than letting
+    // the queue grow unboundedly while the consumer falls behind.
+    bool TryEnqueue(RawIrcMessage message);
+
+    ChannelReader<RawIrcMessage> Reader { get; }
 }
 
-public class StorageService : IStorageService
+public sealed class StorageService : IStorageService
 {
-    private readonly ConcurrentBag<RawIrcMessage> _messageQueue = new();
+    private readonly Channel<RawIrcMessage> _channel;
+    private int _count;
 
-    public int Count => _messageQueue.Count;
+    public StorageService()
+    {
+        _channel = Channel.CreateBounded<RawIrcMessage>(new BoundedChannelOptions(capacity: 10_000)
+        {
+            FullMode = BoundedChannelFullMode.DropWrite,
+            SingleReader = true,
+            SingleWriter = false,
+        });
+    }
 
-    public void AddToQueue(RawIrcMessage message)
-        => _messageQueue.Add(message);
+    public int Count => Volatile.Read(ref _count);
 
-    public bool IsEmpty()
-        => _messageQueue.IsEmpty;
+    public bool TryEnqueue(RawIrcMessage message)
+    {
+        if (!_channel.Writer.TryWrite(message)) return false;
+        Interlocked.Increment(ref _count);
+        return true;
+    }
 
-    public bool TryPeek(out RawIrcMessage? message)
-        => _messageQueue.TryPeek(out message);
+    public ChannelReader<RawIrcMessage> Reader => new TrackingReader(_channel.Reader, this);
 
-    public bool TryTake(out RawIrcMessage? message)
-        => _messageQueue.TryTake(out message);
+    // Wraps the underlying reader so we can keep our own approximate count for
+    // the observable gauge; Channel<T> does not expose a cheap Count.
+    private sealed class TrackingReader(ChannelReader<RawIrcMessage> _inner, StorageService _owner)
+        : ChannelReader<RawIrcMessage>
+    {
+        public override bool TryRead(out RawIrcMessage item)
+        {
+            if (!_inner.TryRead(out item!)) return false;
+            Interlocked.Decrement(ref _owner._count);
+            return true;
+        }
+
+        public override ValueTask<bool> WaitToReadAsync(CancellationToken cancellationToken = default)
+            => _inner.WaitToReadAsync(cancellationToken);
+
+        public override bool CanCount => _inner.CanCount;
+        public override int Count => _inner.Count;
+        public override bool CanPeek => _inner.CanPeek;
+        public override bool TryPeek(out RawIrcMessage item) => _inner.TryPeek(out item!);
+    }
 }
