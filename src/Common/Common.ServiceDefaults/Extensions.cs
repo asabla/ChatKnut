@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 
 using OpenTelemetry;
+using OpenTelemetry.Instrumentation.AspNetCore;
+using OpenTelemetry.Instrumentation.Http;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -70,6 +73,8 @@ public static class Extensions
             logging.IncludeScopes = true;
         });
 
+        ConfigureTelemetryFilters(builder);
+
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
@@ -80,7 +85,9 @@ public static class Extensions
             .WithTracing(tracing =>
             {
                 tracing.AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation();
+                    .AddHttpClientInstrumentation()
+                    .AddEntityFrameworkCoreInstrumentation()
+                    .AddSource("ChatKnut.*");
             });
 
         builder.AddOpenTelemetryExporters();
@@ -98,6 +105,8 @@ public static class Extensions
             logging.ParseStateValues = true;
         });
 
+        ConfigureTelemetryFilters(builder);
+
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
@@ -109,13 +118,53 @@ public static class Extensions
             {
                 tracing.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddHotChocolateInstrumentation();
+                    .AddEntityFrameworkCoreInstrumentation()
+                    .AddHotChocolateInstrumentation()
+                    .AddSource("ChatKnut.*");
             });
 
         builder.AddOpenTelemetryExporters();
 
         return builder;
     }
+
+    private static void ConfigureTelemetryFilters(IHostApplicationBuilder builder)
+    {
+        builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options =>
+        {
+            options.Filter = httpContext => !IsHealthProbePath(httpContext.Request.Path);
+        });
+
+        builder.Services.Configure<HttpClientTraceInstrumentationOptions>(options =>
+        {
+            options.FilterHttpRequestMessage = request =>
+            {
+                if (request.RequestUri is null) return true;
+
+                // Do not trace the OTLP export loop back onto itself.
+                var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+                if (!string.IsNullOrWhiteSpace(otlpEndpoint)
+                    && Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var otlpUri)
+                    && Uri.Compare(
+                        request.RequestUri, otlpUri,
+                        UriComponents.SchemeAndServer,
+                        UriFormat.SafeUnescaped,
+                        StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    return false;
+                }
+
+                return !IsHealthProbePath(request.RequestUri.AbsolutePath);
+            };
+        });
+    }
+
+    private static bool IsHealthProbePath(PathString path)
+        => path.StartsWithSegments("/health") || path.StartsWithSegments("/alive");
+
+    private static bool IsHealthProbePath(string path)
+        => path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/alive", StringComparison.OrdinalIgnoreCase);
 
     private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
     {
