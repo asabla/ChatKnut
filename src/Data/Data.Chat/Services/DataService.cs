@@ -15,7 +15,7 @@ public interface IQueueService
     Task<Channel> GetOrCreateChannelAsync(string channelName);
 }
 
-public class QueueService(
+public partial class QueueService(
     IDbContextFactory<ChatKnutDbContext> _dbContextFactory,
     IMemoryCache _memoryCache,
     ILogger<QueueService> _logger
@@ -35,17 +35,17 @@ public class QueueService(
         if (_memoryCache.TryGetValue($"user_{userName}", out object? value)
             && value is User cacheUser)
         {
-            _logger.LogDebug("Found user {UserName} in cache", userName);
+            LogUserCacheHit(_logger, userName);
             return cacheUser;
         }
         else
         {
-            _logger.LogDebug("User {UserName} was not found in cache", userName);
+            LogUserCacheMiss(_logger, userName);
 
             User resultUser = null!;
             if (!_dbContext.Users.Any(x => x.UserName.Equals(userName)))
             {
-                _logger.LogDebug("User {UserName} was not found in Db, creating user", userName);
+                LogUserCreated(_logger, userName);
                 var result = await _dbContext.Users.AddAsync(new()
                 {
                     Id = Guid.NewGuid(),
@@ -57,7 +57,7 @@ public class QueueService(
             }
             else
             {
-                _logger.LogDebug("User {UserName} found in Db", userName);
+                LogUserLoadedFromDb(_logger, userName);
 
                 resultUser = await _dbContext.Users
                     .Where(x => x.UserName.Equals(userName))
@@ -78,17 +78,17 @@ public class QueueService(
         if (_memoryCache.TryGetValue($"channel_{channelName}", out object? value)
             && value is Channel cacheChannel)
         {
-            _logger.LogDebug("Found channel {ChannelName} in cache", channelName);
+            LogChannelCacheHit(_logger, channelName);
             return cacheChannel;
         }
         else
         {
-            _logger.LogDebug("Channel {ChannelName} was not found in cache", channelName);
+            LogChannelCacheMiss(_logger, channelName);
 
             Channel resultChannel = null!;
             if (!_dbContext.Channels.Any(x => x.ChannelName.Equals(channelName)))
             {
-                _logger.LogDebug("Channel {ChannelName} was not found in Db, creating channel", channelName);
+                LogChannelCreated(_logger, channelName);
                 var result = await _dbContext.Channels.AddAsync(new()
                 {
                     Id = Guid.NewGuid(),
@@ -100,7 +100,7 @@ public class QueueService(
             }
             else
             {
-                _logger.LogDebug("Channel {ChannelName} found in Db", channelName);
+                LogChannelLoadedFromDb(_logger, channelName);
 
                 resultChannel = await _dbContext.Channels
                     .Where(x => x.ChannelName.Equals(channelName))
@@ -120,4 +120,28 @@ public class QueueService(
     {
         return _dbContext.ChatMessages.Add(message);
     }
+
+    [LoggerMessage(EventId = 2000, Level = LogLevel.Debug, Message = "Found user {UserName} in cache")]
+    private static partial void LogUserCacheHit(ILogger logger, string userName);
+
+    [LoggerMessage(EventId = 2001, Level = LogLevel.Debug, Message = "User {UserName} was not found in cache")]
+    private static partial void LogUserCacheMiss(ILogger logger, string userName);
+
+    [LoggerMessage(EventId = 2002, Level = LogLevel.Debug, Message = "User {UserName} was not found in Db, creating user")]
+    private static partial void LogUserCreated(ILogger logger, string userName);
+
+    [LoggerMessage(EventId = 2003, Level = LogLevel.Debug, Message = "User {UserName} found in Db")]
+    private static partial void LogUserLoadedFromDb(ILogger logger, string userName);
+
+    [LoggerMessage(EventId = 2010, Level = LogLevel.Debug, Message = "Found channel {ChannelName} in cache")]
+    private static partial void LogChannelCacheHit(ILogger logger, string channelName);
+
+    [LoggerMessage(EventId = 2011, Level = LogLevel.Debug, Message = "Channel {ChannelName} was not found in cache")]
+    private static partial void LogChannelCacheMiss(ILogger logger, string channelName);
+
+    [LoggerMessage(EventId = 2012, Level = LogLevel.Debug, Message = "Channel {ChannelName} was not found in Db, creating channel")]
+    private static partial void LogChannelCreated(ILogger logger, string channelName);
+
+    [LoggerMessage(EventId = 2013, Level = LogLevel.Debug, Message = "Channel {ChannelName} found in Db")]
+    private static partial void LogChannelLoadedFromDb(ILogger logger, string channelName);
 }
