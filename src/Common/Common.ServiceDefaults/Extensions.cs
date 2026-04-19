@@ -18,9 +18,12 @@ namespace Microsoft.Extensions.Hosting;
 // To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
 {
-    public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder AddServiceDefaults(
+        this IHostApplicationBuilder builder,
+        Action<TracerProviderBuilder>? configureTracing = null,
+        bool enableLogStateParsing = false)
     {
-        builder.ConfigureOpenTelemetry();
+        builder.ConfigureOpenTelemetry(configureTracing, enableLogStateParsing);
 
         builder.AddDefaultHealthChecks();
 
@@ -46,31 +49,20 @@ public static class Extensions
 
     public static IHostApplicationBuilder AddGraphQLServiceDefaults(
         this IHostApplicationBuilder builder)
-    {
-        builder.ConfigureOpenTelemetryWithHotChocolate();
+        => builder.AddServiceDefaults(
+            configureTracing: tracing => tracing.AddHotChocolateInstrumentation(),
+            enableLogStateParsing: true);
 
-        builder.AddDefaultHealthChecks();
-
-        builder.Services.AddServiceDiscovery();
-
-        builder.Services.ConfigureHttpClientDefaults(http =>
-        {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
-
-            // Turn on service discovery by default
-            http.AddServiceDiscovery();
-        });
-
-        return builder;
-    }
-
-    public static IHostApplicationBuilder ConfigureOpenTelemetry(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder ConfigureOpenTelemetry(
+        this IHostApplicationBuilder builder,
+        Action<TracerProviderBuilder>? configureTracing = null,
+        bool enableLogStateParsing = false)
     {
         builder.Logging.AddOpenTelemetry(logging =>
         {
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
+            logging.ParseStateValues = enableLogStateParsing;
         });
 
         ConfigureTelemetryFilters(builder);
@@ -88,39 +80,8 @@ public static class Extensions
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation()
                     .AddSource("ChatKnut.*");
-            });
 
-        builder.AddOpenTelemetryExporters();
-
-        return builder;
-    }
-
-    public static IHostApplicationBuilder ConfigureOpenTelemetryWithHotChocolate(
-        this IHostApplicationBuilder builder)
-    {
-        builder.Logging.AddOpenTelemetry(logging =>
-        {
-            logging.IncludeFormattedMessage = true;
-            logging.IncludeScopes = true;
-            logging.ParseStateValues = true;
-        });
-
-        ConfigureTelemetryFilters(builder);
-
-        builder.Services.AddOpenTelemetry()
-            .WithMetrics(metrics =>
-            {
-                metrics.AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
-            })
-            .WithTracing(tracing =>
-            {
-                tracing.AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddEntityFrameworkCoreInstrumentation()
-                    .AddHotChocolateInstrumentation()
-                    .AddSource("ChatKnut.*");
+                configureTracing?.Invoke(tracing);
             });
 
         builder.AddOpenTelemetryExporters();
