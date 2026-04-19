@@ -33,13 +33,13 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<DataBufferService>
 // Register the app-level telemetry instruments (queue-depth gauge).
 builder.Services.AddChatKnutTelemetry();
 
-// HotChocolate's ITopicEventSender is needed by DataBufferService for live
-// fan-out. Registering AddInMemorySubscriptions just to satisfy DI while
-// cross-process pub-sub is still wired up in Phase 5 — until then, live
-// subscribers connected to the backend will not see new messages.
+// Register an ITopicEventSender over the shared Garnet instance so messages
+// published here are received by subscribers connected to the backend
+// service. AddRedisSubscriptions binds to the IConnectionMultiplexer that
+// AddRedisDistributedCache registered above.
 builder.Services
     .AddGraphQLServer()
-    .AddInMemorySubscriptions();
+    .AddRedisSubscriptions();
 
 var host = builder.Build();
 await host.RunAsync();

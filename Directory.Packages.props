@@ -16,6 +16,7 @@
     <PackageVersion Include="HotChocolate.Data.EntityFramework" Version="15.1.14" />
     <PackageVersion Include="HotChocolate.Diagnostics" Version="15.1.14" />
     <PackageVersion Include="HotChocolate.Subscriptions" Version="15.1.14" />
+    <PackageVersion Include="HotChocolate.Subscriptions.Redis" Version="15.1.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.6" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.6" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6">

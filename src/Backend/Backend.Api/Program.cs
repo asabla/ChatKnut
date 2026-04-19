@@ -48,7 +48,7 @@ builder.Services
     .AddQueryType<Query>()
     .AddMutationType<Mutation>()
     .AddSubscriptionType<Subscription>()
-    .AddInMemorySubscriptions()
+    .AddRedisSubscriptions()
     .AddCacheControl()
     .AddInstrumentation();
 

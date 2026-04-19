@@ -17,6 +17,7 @@
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
     <PackageReference Include="HotChocolate.Subscriptions" />
+    <PackageReference Include="HotChocolate.Subscriptions.Redis" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
