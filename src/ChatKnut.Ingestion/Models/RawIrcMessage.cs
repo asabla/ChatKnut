@@ -1,4 +1,4 @@
-namespace ChatKnut.Common.TwitchChat.Models;
+namespace ChatKnut.Ingestion.Models;
 
 public record RawIrcMessage(string RawMessage)
 {

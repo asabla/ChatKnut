@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace ChatKnut.Common.TwitchChat.Telemetry;
+namespace ChatKnut.Ingestion.Telemetry;
 
 // Registers an ObservableGauge against the queue-depth of the shared
 // IStorageService. Implemented as a BackgroundService so the gauge stays
