@@ -35,17 +35,17 @@ public class QueueService(
         if (_memoryCache.TryGetValue($"user_{userName}", out object? value)
             && value is User cacheUser)
         {
-            _logger.LogDebug("Found user '{userName}' in cache", userName);
+            _logger.LogDebug("Found user {UserName} in cache", userName);
             return cacheUser;
         }
         else
         {
-            _logger.LogDebug("User '{userName}' was not found in cache", userName);
+            _logger.LogDebug("User {UserName} was not found in cache", userName);
 
             User resultUser = null!;
             if (!_dbContext.Users.Any(x => x.UserName.Equals(userName)))
             {
-                _logger.LogDebug("User '{userName}' was not found in Db, creating user", userName);
+                _logger.LogDebug("User {UserName} was not found in Db, creating user", userName);
                 var result = await _dbContext.Users.AddAsync(new()
                 {
                     Id = Guid.NewGuid(),
@@ -57,7 +57,7 @@ public class QueueService(
             }
             else
             {
-                _logger.LogDebug("User '{userName}' found in Db", userName);
+                _logger.LogDebug("User {UserName} found in Db", userName);
 
                 resultUser = await _dbContext.Users
                     .Where(x => x.UserName.Equals(userName))
@@ -78,17 +78,17 @@ public class QueueService(
         if (_memoryCache.TryGetValue($"channel_{channelName}", out object? value)
             && value is Channel cacheChannel)
         {
-            _logger.LogDebug("Found channel '{channelName}' in cache", channelName);
+            _logger.LogDebug("Found channel {ChannelName} in cache", channelName);
             return cacheChannel;
         }
         else
         {
-            _logger.LogDebug("Channel '{channelName}' was not found in cache", channelName);
+            _logger.LogDebug("Channel {ChannelName} was not found in cache", channelName);
 
             Channel resultChannel = null!;
             if (!_dbContext.Channels.Any(x => x.ChannelName.Equals(channelName)))
             {
-                _logger.LogDebug("Channel '{channelName}' was not found in Db, creating channel", channelName);
+                _logger.LogDebug("Channel {ChannelName} was not found in Db, creating channel", channelName);
                 var result = await _dbContext.Channels.AddAsync(new()
                 {
                     Id = Guid.NewGuid(),
@@ -100,7 +100,7 @@ public class QueueService(
             }
             else
             {
-                _logger.LogDebug("Channel '{channelName}' found in Db", channelName);
+                _logger.LogDebug("Channel {ChannelName} found in Db", channelName);
 
                 resultChannel = await _dbContext.Channels
                     .Where(x => x.ChannelName.Equals(channelName))

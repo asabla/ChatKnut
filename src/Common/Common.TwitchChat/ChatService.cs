@@ -43,8 +43,12 @@ public class ChatService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        _logger.BeginScope($"[{nameof(ChatService)}]");
-        _logger.LogInformation($"Starting {nameof(ChatService)}");
+        using var _ = _logger.BeginScope(new Dictionary<string, object>
+        {
+            ["Service"] = nameof(ChatService),
+            ["IrcAccount"] = _ircAccountname,
+        });
+        _logger.LogInformation("Starting {Service}", nameof(ChatService));
 
         while (cancellationToken.IsCancellationRequested is false)
         {
@@ -84,7 +88,7 @@ public class ChatService : BackgroundService
             }
         }
 
-        _logger.LogInformation($"Shutting down {nameof(ChatService)}...");
+        _logger.LogInformation("Shutting down {Service}", nameof(ChatService));
 
         await Disconnect();
     }
@@ -94,7 +98,7 @@ public class ChatService : BackgroundService
         if (!channel.StartsWith("#"))
             throw new ArgumentException("Channel must start with #", nameof(channel));
 
-        _logger.LogInformation("Joinging channel '{channel}'", channel);
+        _logger.LogInformation("Joining channel {Channel}", channel);
 
         await SendStringMessageAsync($"JOIN {channel}");
     }
@@ -114,7 +118,7 @@ public class ChatService : BackgroundService
         if (msg.Sender.StartsWith("justinfan"))
         {
             _logger.LogInformation(
-                "System accounts ('{userName}') will not be logged",
+                "System accounts ({UserName}) will not be logged",
                 msg.Sender);
 
             return;
@@ -167,7 +171,7 @@ public class ChatService : BackgroundService
         }
         catch
         {
-            _logger.LogWarning($"Unable to parse message: {message}");
+            _logger.LogWarning("Unable to parse message: {RawMessage}", message);
             return null!;
         }
     }
