@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatKnut.Migrations", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatKnut.Ingestion", "src\ChatKnut.Ingestion\ChatKnut.Ingestion.csproj", "{EC219F39-254E-44B6-987D-860118FF0205}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.Messaging", "src\Common\Common.Messaging\Common.Messaging.csproj", "{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -105,6 +107,18 @@ Global
 		{EC219F39-254E-44B6-987D-860118FF0205}.Release|x64.Build.0 = Release|Any CPU
 		{EC219F39-254E-44B6-987D-860118FF0205}.Release|x86.ActiveCfg = Release|Any CPU
 		{EC219F39-254E-44B6-987D-860118FF0205}.Release|x86.Build.0 = Release|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Debug|x64.Build.0 = Debug|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Debug|x86.Build.0 = Debug|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Release|x64.ActiveCfg = Release|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Release|x64.Build.0 = Release|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Release|x86.ActiveCfg = Release|Any CPU
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -119,5 +133,6 @@ Global
 		{473E8567-2EE0-491E-8D92-B83CA965B619} = {B49908DC-E77B-4442-8510-27A3382AC600}
 		{6A760016-9884-4DE6-9EE5-294DFE7ED020} = {0333706F-C5C3-45A5-BC4B-76BDF56180A7}
 		{EC219F39-254E-44B6-987D-860118FF0205} = {0333706F-C5C3-45A5-BC4B-76BDF56180A7}
+		{64CF44D2-E3B4-4944-A87B-5B81E92EF14A} = {B49908DC-E77B-4442-8510-27A3382AC600}
 	EndGlobalSection
 EndGlobal
