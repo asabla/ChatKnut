@@ -2,26 +2,24 @@ using System.Diagnostics;
 
 using ChatKnut.Common.TwitchChat.Models;
 using ChatKnut.Common.TwitchChat.Telemetry;
-using ChatKnut.Data.Chat;
 using ChatKnut.Data.Chat.Models;
 using ChatKnut.Data.Chat.Services;
 
 using HotChocolate.Subscriptions;
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace ChatKnut.Common.TwitchChat;
 
 public class DataBufferService(
-    IQueueService _dataService,
+    IChatRepository _repository,
     IStorageService _storageService,
     ITopicEventSender _eventSender,
     ILogger<DataBufferService> _logger
     ) : BackgroundService
 {
-    private ChatKnutDbContext _dbContext = null!;
+    private const int BufferIntervalMs = 500;
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -30,97 +28,116 @@ public class DataBufferService(
             ["Service"] = nameof(DataBufferService),
         });
 
-        _dbContext = await _dataService.CreateDbContext();
         _logger.LogInformation("Starting {Service}", nameof(DataBufferService));
 
-        int bufferInterval = 500;
-        DateTime bufferLimitTime = DateTime.Now.AddMilliseconds(bufferInterval);
-        List<RawIrcMessage> bufferedMessages = new();
+        var bufferLimitTime = DateTime.UtcNow.AddMilliseconds(BufferIntervalMs);
+        var bufferedMessages = new List<RawIrcMessage>();
 
         // Needs an artificial delay before starting up for now
-        await Task.Delay(bufferInterval);
+        await Task.Delay(BufferIntervalMs, cancellationToken);
 
-        // Makes sure message buffer is empty before shutting down background service
-        while (cancellationToken.IsCancellationRequested is false)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            if (_storageService.TryTake(out RawIrcMessage? tmpRawMessage) is false
-                && bufferedMessages.Count == 0)
+            if (!_storageService.TryTake(out var tmpRawMessage) && bufferedMessages.Count == 0)
             {
-                // This may be the starting state, no need to loop through it
-                // as fast as possible
-                await Task.Delay(bufferInterval);
-
+                await Task.Delay(BufferIntervalMs, cancellationToken);
                 continue;
             }
-            else if (tmpRawMessage is not null)
-            {
+
+            if (tmpRawMessage is not null)
                 bufferedMessages.Add(tmpRawMessage);
-            }
 
-            // If 500ms has taken since last run, then
-            // try insert message into db
-            if (DateTime.Now <= bufferLimitTime)
+            if (DateTime.UtcNow <= bufferLimitTime)
                 continue;
 
-            bufferLimitTime = DateTime.Now.AddMilliseconds(bufferInterval);
+            bufferLimitTime = DateTime.UtcNow.AddMilliseconds(BufferIntervalMs);
 
             _logger.LogInformation("Start handling {MessageCount} messages", bufferedMessages.Count);
-            await HandleBufferedMessages(bufferedMessages);
-
+            await HandleBufferedMessagesAsync(bufferedMessages, cancellationToken);
             _logger.LogInformation("{MessageCount} messages have been handled", bufferedMessages.Count);
+
             bufferedMessages.Clear();
         }
 
         _logger.LogInformation("Shutting down {Service}", nameof(DataBufferService));
     }
 
-    private async Task HandleBufferedMessages(List<RawIrcMessage> messages)
+    private async Task HandleBufferedMessagesAsync(
+        List<RawIrcMessage> messages, CancellationToken cancellationToken)
     {
+        if (messages.Count == 0) return;
+
         using var activity = ChatTelemetry.ActivitySource.StartActivity(
             "databuffer.flush", ActivityKind.Internal);
         activity?.SetTag("messaging.batch.message_count", messages.Count);
 
         var stopwatch = Stopwatch.StartNew();
 
-        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        // Fresh DbContext per flush: keeps the change tracker bounded and
+        // guarantees the context is disposed before the next flush starts.
+        await using var context = await _repository.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        var savedMessages = new List<(RawIrcMessage Raw, ChatMessage Entity, UserRef User, ChannelRef Channel)>(messages.Count);
+        var newlySeenUsers = new Dictionary<string, UserRef>(StringComparer.Ordinal);
+        var newlySeenChannels = new Dictionary<string, ChannelRef>(StringComparer.Ordinal);
 
         foreach (var m in messages)
         {
-            var channel = await _dataService.GetOrCreateChannelAsync(m.Channel);
-            var user = await _dataService.GetOrCreateUserAsync(m.Sender);
+            var channel = await _repository.GetOrCreateChannelAsync(context, m.Channel, cancellationToken);
+            var user = await _repository.GetOrCreateUserAsync(context, m.Sender, cancellationToken);
 
-            var dbMessage = _dataService.InsertMessage(new()
+            var entity = new ChatMessage
             {
                 Id = Guid.NewGuid(),
                 ChannelName = m.Channel,
                 CreatedUtc = DateTime.UtcNow,
                 Message = m.Message,
                 UserId = user.Id,
-                ChannelId = channel.Id
-            });
+                ChannelId = channel.Id,
+            };
 
-            // TODO: I don't think this one is working properly now
-            // probably need to realize the objects (SaveChanges) before
-            // the actual object is available. This needs to be refactored
-            // into not relying on the saved state in database
-            if (dbMessage is not null)
-            {
-                await _eventSender.SendAsync(m.Channel, new ChatMessage
-                {
-                    Id = dbMessage.Entity.Id,
-                    ChannelName = dbMessage.Entity.ChannelName,
-                    Message = dbMessage.Entity.Message,
-                    CreatedUtc = dbMessage.Entity.CreatedUtc,
-                    UserId = user.Id,
-                    User = user,
-                    ChannelId = channel.Id,
-                    Channel = channel
-                });
-            }
+            await context.ChatMessages.AddAsync(entity, cancellationToken);
+
+            savedMessages.Add((m, entity, user, channel));
+            newlySeenUsers.TryAdd(user.UserName, user);
+            newlySeenChannels.TryAdd(channel.ChannelName, channel);
         }
 
-        await _dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        // Only cache after a successful commit so evicted rows can't point at
+        // users/channels that never made it into the database.
+        await _repository.PromoteToCacheAsync(
+            newlySeenUsers.Values, newlySeenChannels.Values, cancellationToken);
+
+        // Fan-out to GraphQL subscribers happens after commit for the same
+        // reason: subscribers only ever see persisted messages.
+        foreach (var (raw, entity, userRef, channelRef) in savedMessages)
+        {
+            await _eventSender.SendAsync(raw.Channel, new ChatMessage
+            {
+                Id = entity.Id,
+                ChannelName = entity.ChannelName,
+                Message = entity.Message,
+                CreatedUtc = entity.CreatedUtc,
+                UserId = userRef.Id,
+                User = new User
+                {
+                    Id = userRef.Id,
+                    UserName = userRef.UserName,
+                    CreatedUtc = userRef.CreatedUtc,
+                },
+                ChannelId = channelRef.Id,
+                Channel = new Channel
+                {
+                    Id = channelRef.Id,
+                    ChannelName = channelRef.ChannelName,
+                    CreatedUtc = channelRef.CreatedUtc,
+                },
+            }, cancellationToken);
+        }
 
         stopwatch.Stop();
         ChatTelemetry.BufferFlushDuration.Record(stopwatch.Elapsed.TotalMilliseconds);

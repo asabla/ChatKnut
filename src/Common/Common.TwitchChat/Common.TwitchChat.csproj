@@ -13,8 +13,6 @@
 
   <ItemGroup>
     <PackageReference Include="HotChocolate.Subscriptions" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
