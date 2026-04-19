@@ -1,9 +1,9 @@
 using System.Diagnostics;
 
-using ChatKnut.Ingestion.Models;
-using ChatKnut.Ingestion.Telemetry;
 using ChatKnut.Data.Chat.Models;
 using ChatKnut.Data.Chat.Services;
+using ChatKnut.Ingestion.Models;
+using ChatKnut.Ingestion.Telemetry;
 
 using HotChocolate.Subscriptions;
 
@@ -12,14 +12,14 @@ using Microsoft.Extensions.Logging;
 
 namespace ChatKnut.Ingestion;
 
-public class DataBufferService(
+public sealed class DataBufferService(
+    IStorageService _storage,
     IChatRepository _repository,
-    IStorageService _storageService,
     ITopicEventSender _eventSender,
-    ILogger<DataBufferService> _logger
-    ) : BackgroundService
+    ILogger<DataBufferService> _logger) : BackgroundService
 {
-    private const int BufferIntervalMs = 500;
+    private static readonly TimeSpan MaxBufferWindow = TimeSpan.FromMilliseconds(500);
+    private const int MaxBatchSize = 1_000;
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -30,33 +30,48 @@ public class DataBufferService(
 
         _logger.LogInformation("Starting {Service}", nameof(DataBufferService));
 
-        var bufferLimitTime = DateTime.UtcNow.AddMilliseconds(BufferIntervalMs);
-        var bufferedMessages = new List<RawIrcMessage>();
+        var reader = _storage.Reader;
+        var batch = new List<RawIrcMessage>(capacity: MaxBatchSize);
 
-        // Needs an artificial delay before starting up for now
-        await Task.Delay(BufferIntervalMs, cancellationToken);
-
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            if (!_storageService.TryTake(out var tmpRawMessage) && bufferedMessages.Count == 0)
+            while (await reader.WaitToReadAsync(cancellationToken))
             {
-                await Task.Delay(BufferIntervalMs, cancellationToken);
-                continue;
+                var deadline = DateTime.UtcNow + MaxBufferWindow;
+
+                // Drain whatever is available up to the deadline or the max
+                // batch size, whichever comes first.
+                while (batch.Count < MaxBatchSize
+                    && DateTime.UtcNow < deadline
+                    && reader.TryRead(out var item))
+                {
+                    batch.Add(item);
+                }
+
+                if (batch.Count == 0)
+                {
+                    // Woken by WaitToReadAsync but the message was consumed
+                    // between the wait and the drain — loop back to wait.
+                    continue;
+                }
+
+                try
+                {
+                    await HandleBufferedMessagesAsync(batch, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Flush of {Count} messages failed; continuing", batch.Count);
+                }
+                finally
+                {
+                    batch.Clear();
+                }
             }
-
-            if (tmpRawMessage is not null)
-                bufferedMessages.Add(tmpRawMessage);
-
-            if (DateTime.UtcNow <= bufferLimitTime)
-                continue;
-
-            bufferLimitTime = DateTime.UtcNow.AddMilliseconds(BufferIntervalMs);
-
-            _logger.LogInformation("Start handling {MessageCount} messages", bufferedMessages.Count);
-            await HandleBufferedMessagesAsync(bufferedMessages, cancellationToken);
-            _logger.LogInformation("{MessageCount} messages have been handled", bufferedMessages.Count);
-
-            bufferedMessages.Clear();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // graceful shutdown
         }
 
         _logger.LogInformation("Shutting down {Service}", nameof(DataBufferService));
@@ -65,16 +80,12 @@ public class DataBufferService(
     private async Task HandleBufferedMessagesAsync(
         List<RawIrcMessage> messages, CancellationToken cancellationToken)
     {
-        if (messages.Count == 0) return;
-
         using var activity = ChatTelemetry.ActivitySource.StartActivity(
             "databuffer.flush", ActivityKind.Internal);
         activity?.SetTag("messaging.batch.message_count", messages.Count);
 
         var stopwatch = Stopwatch.StartNew();
 
-        // Fresh DbContext per flush: keeps the change tracker bounded and
-        // guarantees the context is disposed before the next flush starts.
         await using var context = await _repository.CreateDbContextAsync(cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -107,13 +118,9 @@ public class DataBufferService(
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        // Only cache after a successful commit so evicted rows can't point at
-        // users/channels that never made it into the database.
         await _repository.PromoteToCacheAsync(
             newlySeenUsers.Values, newlySeenChannels.Values, cancellationToken);
 
-        // Fan-out to GraphQL subscribers happens after commit for the same
-        // reason: subscribers only ever see persisted messages.
         foreach (var (raw, entity, userRef, channelRef) in savedMessages)
         {
             await _eventSender.SendAsync(raw.Channel, new ChatMessage

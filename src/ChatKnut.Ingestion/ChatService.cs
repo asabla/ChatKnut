@@ -1,45 +1,53 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Sockets;
 
+using ChatKnut.Data.Chat;
+using ChatKnut.Data.Chat.Services;
 using ChatKnut.Ingestion.Models;
 using ChatKnut.Ingestion.Telemetry;
 
-using HotChocolate.Subscriptions;
-
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace ChatKnut.Ingestion;
 
-public partial class ChatService : BackgroundService
+public sealed partial class ChatService : BackgroundService
 {
-    private readonly IStorageService _storageService;
-    private readonly ILogger<ChatService> _logger;
-    private readonly ITopicEventSender _eventSender;
+    // How long to wait for a line from Twitch before treating the socket as
+    // stalled. Twitch sends a PING at least every ~5 minutes, so 6 minutes of
+    // silence is clearly wrong.
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromMinutes(6);
 
-    private TcpClient _tcpClient;
+    // Exponential backoff bounds for reconnect loop.
+    private static readonly TimeSpan MinBackoff = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(2);
+
+    private readonly IStorageService _storage;
+    private readonly IChatRepository _repository;
+    private readonly ILogger<ChatService> _logger;
+
     private readonly string _ircAccountname;
 
-    private StreamWriter _outputStream = null!;
-    private StreamReader _inputStream = null!;
+    // Channels we've asked to JOIN, so we can re-JOIN them after a reconnect.
+    // Set rather than list so repeated joins don't double-up.
+    private readonly ConcurrentDictionary<string, byte> _joinedChannels = new(StringComparer.OrdinalIgnoreCase);
+
+    private TcpClient? _tcpClient;
+    private StreamReader? _inputStream;
+    private StreamWriter? _outputStream;
 
     public ChatService(
-        IStorageService storageService,
-        ILogger<ChatService> logger,
-        ITopicEventSender eventSender)
+        IStorageService storage,
+        IChatRepository repository,
+        ILogger<ChatService> logger)
     {
-        _storageService = storageService ??
-            throw new ArgumentNullException(nameof(storageService));
+        _storage = storage;
+        _repository = repository;
+        _logger = logger;
 
-        _logger = logger ??
-            throw new ArgumentNullException(nameof(logger));
-
-        _eventSender = eventSender ??
-            throw new ArgumentNullException(nameof(eventSender));
-
-        _tcpClient = new TcpClient();
-
-        var rnd = new Random();
+        var rnd = Random.Shared;
         _ircAccountname = $"justinfan{rnd.Next(100, 999)}";
     }
 
@@ -52,58 +60,151 @@ public partial class ChatService : BackgroundService
         });
         _logger.LogInformation("Starting {Service}", nameof(ChatService));
 
-        while (cancellationToken.IsCancellationRequested is false)
+        var backoff = MinBackoff;
+
+        while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                if (_tcpClient.Connected)
-                {
-                    var msg = await ReadMessageAsync();
-                    if (msg?.IsEmpty != false) continue;
+                await ConnectAsync(cancellationToken);
+                await JoinAutoJoinChannelsAsync(cancellationToken);
+                await ReadLoopAsync(cancellationToken);
 
-                    if (msg.IsPing)
-                    {
-                        await SendPongResponseAsync();
-                    }
-                    else
-                    {
-                        LogIncomingMessage(_logger, msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
-
-                        HandleMessage(msg);
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation("Is not connected, trying to connect");
-
-                    await ConnectToIrcAsync(cancellationToken);
-                }
+                // Clean exit from ReadLoopAsync means the outer token was
+                // cancelled; loop will terminate.
+                backoff = MinBackoff;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Twitch listener crashed");
-
-                _logger.LogDebug("Waiting 5s until trying to re-connect");
-                await Task.Delay(5000, cancellationToken);
+                _logger.LogError(ex, "IRC connection crashed; reconnecting in {Backoff}", backoff);
             }
+
+            await CloseConnectionAsync();
+
+            try
+            {
+                await Task.Delay(WithJitter(backoff), cancellationToken);
+            }
+            catch (OperationCanceledException) { break; }
+
+            backoff = TimeSpan.FromMilliseconds(Math.Min(backoff.TotalMilliseconds * 2, MaxBackoff.TotalMilliseconds));
         }
 
         _logger.LogInformation("Shutting down {Service}", nameof(ChatService));
 
-        await Disconnect();
+        await CloseConnectionAsync();
     }
 
     public async Task JoinChannelAsync(string channel)
     {
-        if (!channel.StartsWith("#"))
+        if (!channel.StartsWith('#'))
             throw new ArgumentException("Channel must start with #", nameof(channel));
 
-        _logger.LogInformation("Joining channel {Channel}", channel);
+        _joinedChannels[channel] = 0;
 
-        await SendStringMessageAsync($"JOIN {channel}");
+        if (_outputStream is not null)
+        {
+            _logger.LogInformation("Joining channel {Channel}", channel);
+            await SendStringMessageAsync($"JOIN {channel}");
+        }
     }
 
-    #region Private methods
+    private async Task ConnectAsync(CancellationToken cancellationToken)
+    {
+        await CloseConnectionAsync();
+
+        _tcpClient = new TcpClient();
+        await _tcpClient.ConnectAsync("irc.chat.twitch.tv", 6667, cancellationToken);
+
+        var stream = _tcpClient.GetStream();
+        // Leave the stream open so the reader and writer don't close it on each other.
+        _inputStream = new StreamReader(stream, leaveOpen: true);
+        _outputStream = new StreamWriter(stream, leaveOpen: true);
+
+        await SendStringMessageAsync($"NICK {_ircAccountname}");
+        await SendStringMessageAsync("PASS SCHMOOPIIE");
+
+        _logger.LogInformation("Connected to Twitch IRC as {IrcAccount}", _ircAccountname);
+    }
+
+    private async Task JoinAutoJoinChannelsAsync(CancellationToken cancellationToken)
+    {
+        await using var context = await _repository.CreateDbContextAsync(cancellationToken);
+
+        var autoJoin = await context.Channels
+            .AsNoTracking()
+            .Where(c => c.AutoJoin)
+            .Select(c => c.ChannelName)
+            .ToListAsync(cancellationToken);
+
+        foreach (var name in autoJoin)
+            await JoinChannelAsync($"#{name}");
+
+        // Re-JOIN any channels we had been in before a reconnect.
+        foreach (var name in _joinedChannels.Keys)
+            await SendStringMessageAsync($"JOIN {name}");
+
+        _logger.LogInformation(
+            "Joined {AutoJoinCount} auto-join channels, re-joined {ReJoinCount} sticky channels",
+            autoJoin.Count, _joinedChannels.Count);
+    }
+
+    private async Task ReadLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(ReadTimeout);
+
+            string? line;
+            try
+            {
+                line = await _inputStream!.ReadLineAsync(timeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("No IRC traffic for {Timeout}; treating as stall and reconnecting", ReadTimeout);
+                return;
+            }
+
+            if (line is null)
+            {
+                _logger.LogWarning("IRC stream ended; reconnecting");
+                return;
+            }
+
+            if (line.StartsWith(":tmi.twitch.tv"))
+                continue;
+
+            RawIrcMessage? msg;
+            try
+            {
+                msg = new RawIrcMessage(line);
+            }
+            catch
+            {
+                ChatTelemetry.MessagesDropped.Add(
+                    1, new KeyValuePair<string, object?>("reason", "parse_error"));
+                LogUnparseableMessage(_logger, line);
+                continue;
+            }
+
+            if (msg.IsEmpty) continue;
+
+            if (msg.IsPing)
+            {
+                await SendStringMessageAsync("PONG :tmi.twitch.tv");
+                continue;
+            }
+
+            LogIncomingMessage(_logger, msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
+            HandleMessage(msg);
+        }
+    }
 
     private void HandleMessage(RawIrcMessage msg)
     {
@@ -132,74 +233,65 @@ public partial class ChatService : BackgroundService
                 new KeyValuePair<string, object?>("reason", "system_account"),
                 new KeyValuePair<string, object?>("twitch.channel", msg.Channel));
             LogSystemAccountSkipped(_logger, msg.Sender);
+            return;
+        }
 
+        if (!_storage.TryEnqueue(msg))
+        {
+            activity?.SetTag("twitch.dropped_reason", "queue_full");
+            ChatTelemetry.MessagesDropped.Add(
+                1,
+                new KeyValuePair<string, object?>("reason", "queue_full"),
+                new KeyValuePair<string, object?>("twitch.channel", msg.Channel));
+            LogQueueFull(_logger, msg.Channel);
             return;
         }
 
         ChatTelemetry.MessagesReceived.Add(
             1, new KeyValuePair<string, object?>("twitch.channel", msg.Channel));
-
-        // Put message on queue
-        _storageService.AddToQueue(msg);
-    }
-
-    private async Task ConnectToIrcAsync(CancellationToken token)
-    {
-        _tcpClient.Dispose();
-
-        _tcpClient = new TcpClient();
-        await _tcpClient.ConnectAsync("irc.chat.twitch.tv", 6667);
-
-        _outputStream = new StreamWriter(_tcpClient.GetStream());
-        _inputStream = new StreamReader(_tcpClient.GetStream());
-
-        await SendStringMessageAsync($"NICK {_ircAccountname}");
-        await SendStringMessageAsync("PASS SCHMOOPIIE");
-    }
-
-    private Task Disconnect()
-    {
-        _inputStream.Close();
-        _outputStream.Close();
-        _tcpClient.Close();
-
-        return Task.CompletedTask;
-    }
-
-    private async Task SendPongResponseAsync()
-    {
-        _logger.LogInformation("Sending PONG message");
-
-        await SendStringMessageAsync("PONG :tmi.twitch.tv");
-    }
-
-    private async Task<RawIrcMessage> ReadMessageAsync()
-    {
-        var message = await _inputStream.ReadLineAsync();
-
-        if (message?.StartsWith(":tmi.twitch.tv") != false)
-            return null!;
-
-        try
-        {
-            return new RawIrcMessage(message ?? string.Empty);
-        }
-        catch
-        {
-            ChatTelemetry.MessagesDropped.Add(
-                1, new KeyValuePair<string, object?>("reason", "parse_error"));
-            LogUnparseableMessage(_logger, message);
-            return null!;
-        }
     }
 
     private async Task SendStringMessageAsync(string message)
     {
+        if (_outputStream is null) return;
         await _outputStream.WriteAsync($"{message}\r\n");
         await _outputStream.FlushAsync();
     }
 
-    #endregion
+    private async Task CloseConnectionAsync()
+    {
+        // Deterministic cleanup order: flush/close writer, dispose reader,
+        // close client. The original code leaked StreamReader and
+        // StreamWriter on each reconnect by only disposing the TcpClient.
+        try
+        {
+            if (_outputStream is not null)
+                await _outputStream.DisposeAsync();
+        }
+        catch { /* best-effort */ }
+
+        try
+        {
+            _inputStream?.Dispose();
+        }
+        catch { /* best-effort */ }
+
+        try
+        {
+            _tcpClient?.Dispose();
+        }
+        catch { /* best-effort */ }
+
+        _outputStream = null;
+        _inputStream = null;
+        _tcpClient = null;
+    }
+
+    private static TimeSpan WithJitter(TimeSpan baseDelay)
+    {
+        var jitter = Random.Shared.NextDouble() * 0.3 + 0.85;
+        return TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * jitter);
+    }
 
     #region High-volume log methods (source-generated)
 
@@ -227,6 +319,12 @@ public partial class ChatService : BackgroundService
         Level = LogLevel.Warning,
         Message = "Unable to parse message: {RawMessage}")]
     private static partial void LogUnparseableMessage(ILogger logger, string? rawMessage);
+
+    [LoggerMessage(
+        EventId = 1004,
+        Level = LogLevel.Warning,
+        Message = "Ingest queue full, dropping message from {Channel}")]
+    private static partial void LogQueueFull(ILogger logger, string channel);
 
     #endregion
 }
