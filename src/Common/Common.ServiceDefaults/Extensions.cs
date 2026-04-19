@@ -49,9 +49,22 @@ public static class Extensions
 
     public static IHostApplicationBuilder AddGraphQLServiceDefaults(
         this IHostApplicationBuilder builder)
-        => builder.AddServiceDefaults(
+    {
+        var isDevelopment = builder.Environment.IsDevelopment();
+
+        // Include the GraphQL document and DataLoader keys on traces in
+        // development for easier debugging; omit them in production to avoid
+        // leaking query shapes / user input into telemetry backends.
+        builder.Services.Configure<HotChocolate.Diagnostics.InstrumentationOptions>(options =>
+        {
+            options.IncludeDocument = isDevelopment;
+            options.IncludeDataLoaderKeys = isDevelopment;
+        });
+
+        return builder.AddServiceDefaults(
             configureTracing: tracing => tracing.AddHotChocolateInstrumentation(),
             enableLogStateParsing: true);
+    }
 
     public static IHostApplicationBuilder ConfigureOpenTelemetry(
         this IHostApplicationBuilder builder,
@@ -136,6 +149,14 @@ public static class Extensions
         {
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
         }
+        else
+        {
+            // Aspire normally injects OTEL_EXPORTER_OTLP_ENDPOINT for its children.
+            // Standalone runs without it silently drop all telemetry, which has burned
+            // us before — surface it at startup so it's obvious something is off.
+            builder.Logging.AddFilter("ChatKnut.ServiceDefaults", LogLevel.Warning);
+            builder.Services.AddHostedService<MissingOtlpEndpointWarning>();
+        }
 
         // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
         //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
@@ -145,6 +166,21 @@ public static class Extensions
         //}
 
         return builder;
+    }
+
+    private sealed class MissingOtlpEndpointWarning(ILoggerFactory loggerFactory) : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            var logger = loggerFactory.CreateLogger("ChatKnut.ServiceDefaults");
+            logger.LogWarning(
+                "OTEL_EXPORTER_OTLP_ENDPOINT is not set; OpenTelemetry data will be discarded. "
+                + "This is expected when running tests in isolation, but under the Aspire AppHost "
+                + "it usually means the AppHost wiring is broken.");
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     public static IHostApplicationBuilder AddDefaultHealthChecks(this IHostApplicationBuilder builder)

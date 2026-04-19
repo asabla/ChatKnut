@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ChatKnut.Common.TwitchChat;
 
-public class ChatService : BackgroundService
+public partial class ChatService : BackgroundService
 {
     private readonly IStorageService _storageService;
     private readonly ILogger<ChatService> _logger;
@@ -67,9 +67,7 @@ public class ChatService : BackgroundService
                     }
                     else
                     {
-                        _logger.LogDebug(
-                            "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}",
-                            msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
+                        LogIncomingMessage(_logger, msg.CreatedAt, msg.Channel, msg.Sender, msg.Message);
 
                         HandleMessage(msg);
                     }
@@ -119,7 +117,7 @@ public class ChatService : BackgroundService
             activity?.SetStatus(ActivityStatusCode.Error, "incomplete message");
             ChatTelemetry.MessagesDropped.Add(
                 1, new KeyValuePair<string, object?>("reason", "incomplete"));
-            _logger.LogWarning("Message does not contain enough information");
+            LogIncompleteMessage(_logger);
             return;
         }
 
@@ -133,9 +131,7 @@ public class ChatService : BackgroundService
                 1,
                 new KeyValuePair<string, object?>("reason", "system_account"),
                 new KeyValuePair<string, object?>("twitch.channel", msg.Channel));
-            _logger.LogInformation(
-                "System accounts ({UserName}) will not be logged",
-                msg.Sender);
+            LogSystemAccountSkipped(_logger, msg.Sender);
 
             return;
         }
@@ -192,7 +188,7 @@ public class ChatService : BackgroundService
         {
             ChatTelemetry.MessagesDropped.Add(
                 1, new KeyValuePair<string, object?>("reason", "parse_error"));
-            _logger.LogWarning("Unable to parse message: {RawMessage}", message);
+            LogUnparseableMessage(_logger, message);
             return null!;
         }
     }
@@ -202,6 +198,35 @@ public class ChatService : BackgroundService
         await _outputStream.WriteAsync($"{message}\r\n");
         await _outputStream.FlushAsync();
     }
+
+    #endregion
+
+    #region High-volume log methods (source-generated)
+
+    [LoggerMessage(
+        EventId = 1000,
+        Level = LogLevel.Debug,
+        Message = "{CreatedAt} [Channel: {Channel}] [Nick: {Sender}] - {Message}")]
+    private static partial void LogIncomingMessage(
+        ILogger logger, DateTimeOffset createdAt, string channel, string sender, string message);
+
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Warning,
+        Message = "Message does not contain enough information")]
+    private static partial void LogIncompleteMessage(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 1002,
+        Level = LogLevel.Information,
+        Message = "System accounts ({UserName}) will not be logged")]
+    private static partial void LogSystemAccountSkipped(ILogger logger, string userName);
+
+    [LoggerMessage(
+        EventId = 1003,
+        Level = LogLevel.Warning,
+        Message = "Unable to parse message: {RawMessage}")]
+    private static partial void LogUnparseableMessage(ILogger logger, string? rawMessage);
 
     #endregion
 }
