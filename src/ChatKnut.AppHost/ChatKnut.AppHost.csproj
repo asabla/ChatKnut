@@ -14,7 +14,6 @@
     <PackageReference Include="Aspire.Hosting.AppHost" />
     <PackageReference Include="Aspire.Hosting.Garnet" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
-    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
   </ItemGroup>
 
   <ItemGroup>

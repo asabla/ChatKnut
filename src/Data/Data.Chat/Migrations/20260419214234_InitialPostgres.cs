@@ -5,18 +5,20 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Data.Chat.Migrations
 {
-    public partial class InitialSetup : Migration
+    /// <inheritdoc />
+    public partial class InitialPostgres : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
                 name: "Channels",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ChannelName = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    AutoJoin = table.Column<bool>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ChannelName = table.Column<string>(type: "text", nullable: false),
+                    CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    AutoJoin = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -27,9 +29,9 @@ namespace Data.Chat.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserName = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserName = table.Column<string>(type: "text", nullable: false),
+                    CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -40,12 +42,12 @@ namespace Data.Chat.Migrations
                 name: "ChatMessages",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ChannelName = table.Column<string>(type: "TEXT", nullable: true),
-                    Message = table.Column<string>(type: "TEXT", nullable: true),
-                    CreatedUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UserId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ChannelId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ChannelName = table.Column<string>(type: "text", nullable: true),
+                    Message = table.Column<string>(type: "text", nullable: true),
+                    CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ChannelId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -116,6 +118,7 @@ namespace Data.Chat.Migrations
                 column: "UserName");
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
