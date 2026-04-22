@@ -86,7 +86,9 @@ public sealed partial class ChatRepository(
             UserName = userName,
             CreatedUtc = DateTime.UtcNow,
         };
-        await context.Users.AddAsync(entity, cancellationToken);
+        // Sync Add is fine because the PK is a client-generated Guid; AddAsync
+        // only matters when an async value generator is in play.
+        context.Users.Add(entity);
 
         // DO NOT cache yet — the SaveChanges at the end of the batch may roll
         // back. The caller is responsible for calling PromoteToCacheAsync only
@@ -131,7 +133,7 @@ public sealed partial class ChatRepository(
             ChannelName = channelName,
             CreatedUtc = DateTime.UtcNow,
         };
-        await context.Channels.AddAsync(entity, cancellationToken);
+        context.Channels.Add(entity);
 
         return new ChannelRef(entity.Id, entity.ChannelName, entity.CreatedUtc);
     }

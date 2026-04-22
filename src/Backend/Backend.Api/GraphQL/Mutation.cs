@@ -20,10 +20,7 @@ public class Mutation
         IJoinChannelBus bus,
         string channel)
     {
-        if (string.IsNullOrWhiteSpace(channel))
-            throw new ArgumentException("Channel name is required", nameof(channel));
-
-        var normalized = channel.TrimStart('#').ToLowerInvariant();
+        var normalized = TwitchChannelName.Normalize(channel, nameof(channel));
 
         await bus.PublishJoinAsync(normalized);
         return new JoinedChannel(normalized);
@@ -31,20 +28,41 @@ public class Mutation
 
     public async Task<Channel> ChangeAutoJoinChannel(
         ChatKnutDbContext context,
+        IJoinChannelBus bus,
         string channelName,
         bool autoJoin)
     {
-        if (string.IsNullOrWhiteSpace(channelName))
-            throw new ArgumentNullException(nameof(channelName));
+        var normalized = TwitchChannelName.Normalize(channelName, nameof(channelName));
 
+        // Upsert: create the row the first time a channel is marked autojoin
+        // rather than forcing callers to wait for ingestion to have seen a
+        // message there. Guid is client-generated; no insert round-trip races.
         var channel = await context.Channels
-            .Where(x => x.ChannelName == channelName.ToLowerInvariant())
-            .FirstOrDefaultAsync()
-            ?? throw new Exception($"Channel '{channelName}' was not found");
+            .Where(x => x.ChannelName == normalized)
+            .FirstOrDefaultAsync();
 
-        channel.AutoJoin = autoJoin;
+        if (channel is null)
+        {
+            channel = new Channel
+            {
+                Id = Guid.NewGuid(),
+                ChannelName = normalized,
+                CreatedUtc = DateTime.UtcNow,
+                AutoJoin = autoJoin,
+            };
+            context.Channels.Add(channel);
+        }
+        else
+        {
+            channel.AutoJoin = autoJoin;
+        }
 
         await context.SaveChangesAsync();
+
+        // Notify ingestion so it joins right away instead of waiting for the
+        // next reconnect to re-scan the AutoJoin set.
+        if (autoJoin)
+            await bus.PublishJoinAsync(normalized);
 
         return channel;
     }
