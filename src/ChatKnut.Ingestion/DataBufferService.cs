@@ -107,7 +107,7 @@ public sealed class DataBufferService(
                 ChannelId = channel.Id,
             };
 
-            await context.ChatMessages.AddAsync(entity, cancellationToken);
+            context.ChatMessages.Add(entity);
 
             savedMessages.Add((m, entity, user, channel));
             newlySeenUsers.TryAdd(user.UserName, user);
