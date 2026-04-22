@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Diagnostics;
 
 using ChatKnut.Common.Messaging;
@@ -9,16 +10,55 @@ using ChatKnut.Ingestion.Telemetry;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Polly;
+using Polly.Retry;
+
 namespace ChatKnut.Ingestion;
 
-public sealed class DataBufferService(
-    IStorageService _storage,
-    IChatRepository _repository,
-    IChatMessageBus _messageBus,
-    ILogger<DataBufferService> _logger) : BackgroundService
+public sealed class DataBufferService : BackgroundService
 {
     private static readonly TimeSpan MaxBufferWindow = TimeSpan.FromMilliseconds(500);
     private const int MaxBatchSize = 1_000;
+
+    private readonly IStorageService _storage;
+    private readonly IChatRepository _repository;
+    private readonly IChatMessageBus _messageBus;
+    private readonly ILogger<DataBufferService> _logger;
+    private readonly ResiliencePipeline _flushPipeline;
+
+    public DataBufferService(
+        IStorageService storage,
+        IChatRepository repository,
+        IChatMessageBus messageBus,
+        ILogger<DataBufferService> logger)
+    {
+        _storage = storage;
+        _repository = repository;
+        _messageBus = messageBus;
+        _logger = logger;
+
+        // Retry transient DB failures up to three times with exponential
+        // backoff and jitter. Non-DbException failures fall through to the
+        // outer catch so bugs still surface instead of being papered over.
+        _flushPipeline = new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions
+            {
+                ShouldHandle = new PredicateBuilder().Handle<DbException>().Handle<TimeoutException>(),
+                MaxRetryAttempts = 3,
+                Delay = TimeSpan.FromMilliseconds(200),
+                BackoffType = DelayBackoffType.Exponential,
+                UseJitter = true,
+                OnRetry = args =>
+                {
+                    logger.LogWarning(
+                        args.Outcome.Exception,
+                        "Flush attempt {Attempt} failed, retrying in {Delay}",
+                        args.AttemptNumber, args.RetryDelay);
+                    return ValueTask.CompletedTask;
+                },
+            })
+            .Build();
+    }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
@@ -56,7 +96,9 @@ public sealed class DataBufferService(
 
                 try
                 {
-                    await HandleBufferedMessagesAsync(batch, cancellationToken);
+                    await _flushPipeline.ExecuteAsync(
+                        async ct => await HandleBufferedMessagesAsync(batch, ct),
+                        cancellationToken);
                 }
                 catch (Exception ex)
                 {
