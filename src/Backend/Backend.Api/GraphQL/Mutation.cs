@@ -20,10 +20,7 @@ public class Mutation
         IJoinChannelBus bus,
         string channel)
     {
-        if (string.IsNullOrWhiteSpace(channel))
-            throw new ArgumentException("Channel name is required", nameof(channel));
-
-        var normalized = channel.TrimStart('#').ToLowerInvariant();
+        var normalized = TwitchChannelName.Normalize(channel, nameof(channel));
 
         await bus.PublishJoinAsync(normalized);
         return new JoinedChannel(normalized);
@@ -35,10 +32,7 @@ public class Mutation
         string channelName,
         bool autoJoin)
     {
-        if (string.IsNullOrWhiteSpace(channelName))
-            throw new ArgumentException("Channel name is required", nameof(channelName));
-
-        var normalized = channelName.TrimStart('#').ToLowerInvariant();
+        var normalized = TwitchChannelName.Normalize(channelName, nameof(channelName));
 
         // Upsert: create the row the first time a channel is marked autojoin
         // rather than forcing callers to wait for ingestion to have seen a
